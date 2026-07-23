@@ -12,19 +12,23 @@ not vendored into this project.
 | `microsoft/Windows-driver-samples` | `2ee527bfeb0aeb6be11f0a8b6dce4011b358ce89` | Microsoft Public License | General KMDF/UMDF HID minidriver and user/driver communication patterns |
 | `input-leap/input-leap` | `34a34fb20b93113a6b26052cb5a54f9be2327775` | GPLv2 with OpenSSL exception | Architectural reference for reconnect, TLS, certificate fingerprints, sockets, and stream framing |
 
-## Project scope
+## Project scope and repository license
 
-The first target is a personal, local-only build for one MacBook and one Windows host. There is no
-commercial distribution requirement. This changes priorities:
+The repository is publicly distributed under Apache License 2.0. The license was selected to permit
+commercial and non-commercial use while providing an explicit contributor patent grant. The current
+prototype still uses Windows test signing and omits an installer, discovery, pairing UI, production
+certificates, authentication, and encryption.
 
-- GPL code may be studied, modified, and used locally; distribution obligations are not part of the
-  first milestone;
-- test signing and Windows test mode are acceptable;
-- there is no installer, auto-update, discovery, pairing UI, or production certificate work;
-- the acceptance target is native Windows Precision Touchpad behavior on the owner's machine.
+Third-party policy:
 
-If binaries or source are distributed later, the GPL and other license obligations must be reviewed
-at that point.
+- MIT-licensed SPI descriptor/report material may be adapted when its copyright and permission
+  notice are retained in `THIRD_PARTY_NOTICES.md`;
+- GPL USB and Input Leap source code may be studied as a behavioral or architectural reference but
+  must not be copied into this Apache-2.0 codebase;
+- Microsoft documentation defines the platform contract; Microsoft sample source requires a
+  separate license review before any substantial copying;
+- every new third-party code or asset addition must record its source, revision, license, and files
+  affected before merge.
 
 ## Corrections to the initial reuse hypothesis
 
@@ -44,8 +48,8 @@ The reusable part is narrower and more valuable:
 - input conversion routines are useful for behavioral comparison, but Apple packet parsing and
   physical-device queues are out of scope.
 
-For the personal build, both the MIT SPI and GPL USB code may be used as implementation references.
-The descriptor and report path should still be revalidated against current Microsoft Precision
+The MIT SPI code may be adapted with attribution. GPL USB code remains a behavioral reference only.
+The descriptor and report path must still be revalidated against current Microsoft Precision
 Touchpad documentation and submitted with VHF. This is reuse of the HID contract and conversion
 logic, not an 80% transport-layer fork.
 
@@ -62,8 +66,9 @@ The new driver should be a small KMDF HID source driver using VHF rather than a 
 ### Input Leap is an architectural reference, not a networking library dependency
 
 Input Leap supplies mature reconnect, certificate-fingerprint, TLS socket, event-loop, and framing
-ideas. Its code is GPLv2, which is acceptable for local use, but adopting the implementation would
-still pull in a much larger runtime than a 125 Hz stream of at most 476-byte MTP1 messages needs.
+ideas. Its code is GPLv2 and is not incorporated into this Apache-2.0 repository. Adopting the
+implementation would also pull in a much larger runtime than a 125 Hz stream of at most 476-byte
+MTP1 messages needs.
 
 For the first trusted-LAN milestone, retain the existing bounded MTP1 TCP protocol and implement the
 receiver with native Windows sockets. Add authentication and TLS only if the local network setup
@@ -86,8 +91,8 @@ Networking stays in user mode. The kernel boundary accepts only a fixed-size, ve
 containing at most five already-validated contacts. Both service and driver independently clamp
 counts and coordinates, and either side releases all contacts on shutdown or timeout.
 
-For the personal milestone, the "service" is initially a foreground console application. Turning it
-into a Windows service is deferred until the data path and gestures work. TCP must not be moved into
+For the current milestone, the "service" is a foreground console application. Turning it into a
+Windows service is deferred until the data path and gestures are stable. TCP must not be moved into
 the kernel driver: doing so would add kernel networking, reconnect, cancellation, and teardown risk
 without removing the need for a user-facing diagnostic process.
 

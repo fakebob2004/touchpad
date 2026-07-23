@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS protocol and agent
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make clean all
+      - name: Test protocol codec
+        run: make test
+
+  windows:
+    name: Windows receiver
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S windows -B out/windows -A x64
+      - name: Build
+        run: cmake --build out/windows --config Release
+      - name: Test
+        run: ctest --test-dir out/windows -C Release --output-on-failure
+
+# The KMDF/VHF driver is intentionally excluded here. Building, signing, and
+# installing a kernel driver requires a controlled WDK and signing environment.
