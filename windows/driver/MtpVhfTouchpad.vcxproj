@@ -7,11 +7,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C8B09958-38CC-4B6C-A0EE-2607C3714EC4}</ProjectGuid>
     <RootNamespace>MtpVhfTouchpad</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
-    <!-- WDK 26100 NuGet ships VS 17 task assemblies; MSBuild 18 can load them. -->
-    <VisualStudioVersion>17.0</VisualStudioVersion>
-    <!-- The 26100 x64 NuGet omits ApiValidator.exe; Inf2Cat still runs below. -->
-    <ApiValidator_Enable>false</ApiValidator_Enable>
+    <WindowsTargetPlatformVersion>10.0.28000.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -37,6 +33,5 @@
   <ItemGroup><ClInclude Include="Driver.h" /><ClInclude Include="..\shared\TouchpadIoctl.h" /></ItemGroup>
   <ItemGroup><Inf Include="MtpVhfTouchpad.inf" /></ItemGroup>
   <ItemGroup><FilesToPackage Include="$(TargetPath)" Condition="'$(ConfigurationType)'=='Driver'" /></ItemGroup>
-  <ItemGroup><PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.26100.6584" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

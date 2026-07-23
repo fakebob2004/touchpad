@@ -61,8 +61,8 @@ change between macOS releases, and software using it is not suitable for the Mac
 ### Windows
 
 - Windows 11 x64
-- Visual Studio with C++ desktop tools
-- Windows SDK/WDK 10.0.26100 or compatible
+- Visual Studio 2026 with C++ desktop tools
+- Windows SDK/WDK 10.0.28000
 - Administrator access
 - Test-signing mode for the current driver package
 
@@ -82,6 +82,7 @@ python3 tools/analyze_capture.py touches.jsonl
 Build and install the KMDF/VHF driver and receiver first. The current bring-up and restart procedure
 is documented in:
 
+- [Complete Windows setup guide (Chinese)](docs/WINDOWS_SETUP.zh-CN.md)
 - [Windows restart and integration handoff](docs/WINDOWS_RESTART_HANDOFF.md)
 - [VHF startup issue and resolution](docs/VHF_STARTUP_ISSUE.md)
 

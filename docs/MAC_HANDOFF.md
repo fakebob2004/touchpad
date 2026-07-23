@@ -14,7 +14,8 @@ synthetic MTP1 contact
     -> pointer movement
 ```
 
-Validated on Windows 11 x64 with SDK/WDK 26100:
+The original bring-up was validated with SDK/WDK 26100. The current Windows
+build baseline is Visual Studio 2026 with SDK/WDK 28000:
 
 - `Root\MtpVhfTouchpad` starts without a PnP problem.
 - The source-device stack contains `MtpVhfTouchpad` over the required `vhf`

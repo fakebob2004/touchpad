@@ -59,8 +59,8 @@ Mac 发送完整的原始触点帧，而不是手势。网络逻辑完全位于�
 ### Windows
 
 - Windows 11 x64
-- Visual Studio 和 C++ 桌面开发工具
-- Windows SDK/WDK 10.0.26100 或兼容版本
+- Visual Studio 2026 和 C++ 桌面开发工具
+- Windows SDK/WDK 10.0.28000
 - 管理员权限
 - 当前驱动包需要测试签名模式
 
@@ -79,6 +79,7 @@ python3 tools/analyze_capture.py touches.jsonl
 
 先构建并安装 KMDF/VHF 驱动和 Receiver。当前启动与重启流程见：
 
+- [Windows 完整构建、安装与联调指南](docs/WINDOWS_SETUP.zh-CN.md)
 - [Windows 重启与联调交接](docs/WINDOWS_RESTART_HANDOFF.md)
 - [VHF 启动问题及解决方案](docs/VHF_STARTUP_ISSUE.md)
 
