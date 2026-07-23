@@ -19,10 +19,11 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$receiver = Join-Path $repoRoot 'out\manual\mtp-receiver-diag2.exe'
+$receiver = Join-Path $repoRoot 'out\windows\Release\mtp-receiver.exe'
 if (-not (Test-Path -LiteralPath $receiver)) {
-    throw "Receiver not found: $receiver"
+    throw "Current receiver not found: $receiver. Build the Windows Release target first."
 }
+$receiver = (Resolve-Path -LiteralPath $receiver).Path
 
 $configuration = Get-NetIPConfiguration |
     Where-Object {
@@ -42,7 +43,7 @@ if ($profile.NetworkCategory -ne 'Private') {
         -NetworkCategory Private
 }
 
-$ruleName = 'MTP Touchpad Receiver (TCP 39871)'
+$ruleName = "MTP Touchpad Receiver (TCP $Port)"
 Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue |
     Remove-NetFirewallRule
 
@@ -56,7 +57,25 @@ New-NetFirewallRule `
     -RemoteAddress LocalSubnet `
     -Program $receiver | Out-Null
 
-$existing = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+$existing = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($existing) {
+    $listener = Get-Process -Id $existing.OwningProcess -ErrorAction SilentlyContinue
+    $listenerPath = $listener.Path
+    if ($listenerPath -and
+        -not $listenerPath.Equals($receiver, [StringComparison]::OrdinalIgnoreCase)) {
+        if ($listenerPath.StartsWith($repoRoot, [StringComparison]::OrdinalIgnoreCase) -and
+            $listener.Name -like 'mtp-receiver*') {
+            Write-Host "Replacing stale receiver: $listenerPath" -ForegroundColor Yellow
+            Stop-Process -Id $listener.Id -Force
+            Start-Sleep -Milliseconds 250
+            $existing = $null
+        } else {
+            throw "TCP port $Port is already owned by PID $($listener.Id): $listenerPath"
+        }
+    }
+}
+
 if (-not $existing) {
     Start-Process -FilePath $receiver -ArgumentList $Port
     Start-Sleep -Milliseconds 750
@@ -70,6 +89,7 @@ Write-Host 'Windows touchpad receiver is ready.' -ForegroundColor Green
 Write-Host "Interface : $($configuration.InterfaceAlias)"
 Write-Host "IPv4      : $address"
 Write-Host "Port      : $Port"
+Write-Host "Receiver  : $receiver"
 Write-Host "Firewall  : Private / LocalSubnet only"
 Write-Host "Listening : $([bool]$listening)"
 Write-Host ''

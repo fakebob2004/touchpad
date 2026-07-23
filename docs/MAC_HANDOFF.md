@@ -137,7 +137,7 @@ starts the receiver if necessary, and prints the exact Mac command.
 To start the receiver manually:
 
 ```powershell
-E:\formal_PHD\meney\touchpad\out\manual\mtp-receiver-diag2.exe 39871
+E:\formal_PHD\meney\touchpad\out\windows\Release\mtp-receiver.exe 39871
 ```
 
 For traffic from the Mac, allow this executable through Windows Firewall on
@@ -224,7 +224,7 @@ Replace `192.168.1.20` with the Windows host's LAN address.
 Use this order:
 
 1. Confirm both machines are on a trusted private network.
-2. Start `mtp-receiver-diag2.exe` on Windows.
+2. Start `out/windows/Release/mtp-receiver.exe` on Windows.
 3. Start `mac-touch-agent` on macOS.
 4. Place one finger on the Mac trackpad and move it slowly.
 5. Confirm the Windows pointer follows without jumps and vertical direction is
