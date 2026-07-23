@@ -114,7 +114,27 @@ The Windows receiver:
 
 ## Windows test endpoint
 
-Start the receiver on Windows:
+For the current integration machine, the observed LAN endpoint on 2026-07-23
+is:
+
+```text
+Windows IPv4: 192.168.31.115
+TCP port:     39871
+Subnet:       192.168.31.0/24
+```
+
+The address is assigned by the router and can change. Before a Mac integration
+session, prepare Windows from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\windows\tools\prepare_receiver.ps1
+```
+
+The script requests UAC, detects the current active IPv4 address, marks that
+network Private, installs a firewall rule restricted to Private/LocalSubnet,
+starts the receiver if necessary, and prints the exact Mac command.
+
+To start the receiver manually:
 
 ```powershell
 E:\formal_PHD\meney\touchpad\out\manual\mtp-receiver-diag2.exe 39871
@@ -122,6 +142,18 @@ E:\formal_PHD\meney\touchpad\out\manual\mtp-receiver-diag2.exe 39871
 
 For traffic from the Mac, allow this executable through Windows Firewall on
 **Private networks only**. Public-network access is unnecessary.
+
+From macOS, test reachability before starting the agent:
+
+```sh
+nc -vz 192.168.31.115 39871
+```
+
+Then run:
+
+```sh
+./build/mac-touch-agent 192.168.31.115 39871
+```
 
 The receiver should begin with:
 

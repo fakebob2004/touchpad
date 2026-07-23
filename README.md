@@ -73,3 +73,6 @@ The versioned wire format and Windows implementation contract are documented in
 
 The Windows VHF/Precision Touchpad path is now validated with synthetic input.
 For the next real-device integration step, follow `docs/MAC_HANDOFF.md`.
+
+On Windows, `windows/tools/prepare_receiver.ps1` prepares the Private-network
+firewall rule, starts the receiver, and prints the current endpoint for macOS.
