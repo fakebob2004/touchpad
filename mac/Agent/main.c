@@ -41,6 +41,7 @@ typedef struct {
     MessageQueue queue;
     atomic_bool running;
     atomic_bool connected;
+    atomic_bool reconnect_requested;
     atomic_uint_fast32_t sequence;
     atomic_uint_fast64_t captured;
     atomic_uint_fast64_t sent;
@@ -96,21 +97,11 @@ static bool queue_push(MessageQueue *queue, const WireMessage *message) {
     return accepted;
 }
 
-static void queue_recover_with_reset(MessageQueue *queue,
-                                     const WireMessage *reset,
-                                     const WireMessage *latest) {
-    pthread_mutex_lock(&queue->mutex);
-    queue->head = 0;
-    queue->count = 0;
-    queue->items[queue->count++] = *reset;
-    queue->items[queue->count++] = *latest;
-    pthread_cond_signal(&queue->available);
-    pthread_mutex_unlock(&queue->mutex);
-}
-
 static bool queue_pop(MessageQueue *queue, WireMessage *message) {
     pthread_mutex_lock(&queue->mutex);
-    while (queue->count == 0 && atomic_load_explicit(&g_agent.running, memory_order_relaxed)) {
+    while (queue->count == 0 &&
+           atomic_load_explicit(&g_agent.running, memory_order_relaxed) &&
+           !atomic_load_explicit(&g_agent.reconnect_requested, memory_order_relaxed)) {
         struct timespec deadline;
         clock_gettime(CLOCK_REALTIME, &deadline);
         deadline.tv_nsec += 100000000L;
@@ -181,7 +172,8 @@ static int connect_to_receiver(const char *host, const char *port) {
 static bool send_control(int socket_fd, enum TPMessageType type) {
     TPFrame frame;
     memset(&frame, 0, sizeof(frame));
-    frame.sequence = atomic_load_explicit(&g_agent.sequence, memory_order_relaxed);
+    frame.sequence =
+        atomic_fetch_add_explicit(&g_agent.sequence, 1, memory_order_relaxed) + 1;
     frame.capture_time_us = monotonic_microseconds();
     WireMessage message;
     message.length = tp_encode_message(type, &frame, message.bytes, sizeof(message.bytes));
@@ -203,11 +195,13 @@ static void *sender_main(void *context) {
             close(socket_fd);
             continue;
         }
+        atomic_store_explicit(&agent->reconnect_requested, false, memory_order_relaxed);
         atomic_store_explicit(&agent->connected, true, memory_order_release);
         fprintf(stderr, "connected to %s:%s\n", agent->host, agent->port);
 
         WireMessage message;
         while (atomic_load_explicit(&agent->running, memory_order_relaxed) &&
+               !atomic_load_explicit(&agent->reconnect_requested, memory_order_relaxed) &&
                queue_pop(&agent->queue, &message)) {
             if (!send_all(socket_fd, message.bytes, message.length)) {
                 break;
@@ -268,16 +262,12 @@ static void contact_callback(MTDeviceRef device,
         return;
     }
     if (!queue_push(&g_agent.queue, &message)) {
-        TPFrame reset_frame;
-        memset(&reset_frame, 0, sizeof(reset_frame));
-        reset_frame.sequence = frame.sequence;
-        reset_frame.capture_time_us = frame.capture_time_us;
-        WireMessage reset;
-        reset.length = tp_encode_message(TP_MESSAGE_RESET,
-                                         &reset_frame,
-                                         reset.bytes,
-                                         sizeof(reset.bytes));
-        queue_recover_with_reset(&g_agent.queue, &reset, &message);
+        // Assigned but unsent sequence numbers cannot be skipped inside a
+        // strict MTP1 session. Reconnect to establish a fresh HELLO/RESET epoch
+        // instead of attempting to continue after discarded queued frames.
+        atomic_store_explicit(&g_agent.connected, false, memory_order_release);
+        atomic_store_explicit(&g_agent.reconnect_requested, true, memory_order_relaxed);
+        queue_clear(&g_agent.queue);
         atomic_fetch_add_explicit(&g_agent.dropped, 1, memory_order_relaxed);
     }
 }
@@ -304,22 +294,26 @@ static int usage(const char *program) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2 || argc > 5) {
+    if (argc < 2) {
         return usage(argv[0]);
     }
     const char *host = argv[1];
     const char *port = "39871";
     int duration = 0;
-    int index = 2;
-    if (index < argc && strcmp(argv[index], "--duration") != 0) {
-        port = argv[index++];
-    }
-    if (index < argc) {
-        if (index + 2 != argc || strcmp(argv[index], "--duration") != 0) {
-            return usage(argv[0]);
-        }
-        duration = atoi(argv[index + 1]);
-        if (duration <= 0 || duration > 86400) {
+    bool port_seen = false;
+    for (int index = 2; index < argc; ++index) {
+        if (strcmp(argv[index], "--duration") == 0) {
+            if (++index >= argc) {
+                return usage(argv[0]);
+            }
+            duration = atoi(argv[index]);
+            if (duration <= 0 || duration > 86400) {
+                return usage(argv[0]);
+            }
+        } else if (!port_seen) {
+            port = argv[index];
+            port_seen = true;
+        } else {
             return usage(argv[0]);
         }
     }
@@ -329,6 +323,7 @@ int main(int argc, char **argv) {
     g_agent.port = port;
     atomic_init(&g_agent.running, true);
     atomic_init(&g_agent.connected, false);
+    atomic_init(&g_agent.reconnect_requested, false);
     pthread_mutex_init(&g_agent.queue.mutex, NULL);
     pthread_cond_init(&g_agent.queue.available, NULL);
     signal(SIGINT, stop_agent);
@@ -340,7 +335,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "cannot create sender thread\n");
         return 1;
     }
-
     void *framework = dlopen(FRAMEWORK_PATH, RTLD_NOW | RTLD_LOCAL);
     if (framework == NULL) {
         fprintf(stderr, "cannot load MultitouchSupport: %s\n", dlerror());

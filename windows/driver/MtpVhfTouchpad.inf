@@ -1,0 +1,51 @@
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745A17A0-74D3-11D0-B6FE-00A0C90F57DA}
+Provider=%ManufacturerName%
+DriverVer=07/23/2026,0.1.0.7
+CatalogFile=MtpVhfTouchpad.cat
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+MtpVhfTouchpad.sys=1
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%DeviceName%=MtpVhfTouchpad_Install,Root\MtpVhfTouchpad
+
+[MtpVhfTouchpad_Install.NT]
+CopyFiles=DriverCopyFiles
+
+[MtpVhfTouchpad_Install.NT.HW]
+AddReg=MtpVhfTouchpad_Vhf_AddReg
+
+[MtpVhfTouchpad_Vhf_AddReg]
+HKR,,"LowerFilters",0x00010000,"vhf"
+
+[DriverCopyFiles]
+MtpVhfTouchpad.sys
+
+[MtpVhfTouchpad_Install.NT.Services]
+AddService=MtpVhfTouchpad,0x00000002,MtpVhfTouchpad_Service
+
+[MtpVhfTouchpad_Service]
+DisplayName=%ServiceName%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\MtpVhfTouchpad.sys
+
+[Strings]
+ManufacturerName="MTP Touchpad Project"
+DeviceName="Remote Mac Precision Touchpad"
+ServiceName="Remote Mac Precision Touchpad VHF Driver"
+DiskName="Remote Mac Precision Touchpad Driver Disk"

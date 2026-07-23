@@ -1,72 +1,175 @@
-# Mac Precision Touchpad bridge
+# MacBook Precision Touchpad Bridge
 
-The first milestone is a macOS feasibility probe that reads raw contact frames from the built-in
-trackpad. It uses Apple's private `MultitouchSupport.framework`; this is suitable for research and
-direct distribution, not the Mac App Store, and its ABI can change between macOS releases.
+[简体中文](README.zh-CN.md) · [Windows handoff](docs/WINDOWS_HANDOFF.md) · [License](LICENSE)
 
-## Build and run the probe
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black.svg)](#requirements)
+[![Windows](https://img.shields.io/badge/Windows-11%20x64-0078D4.svg)](#requirements)
 
-Requirements: macOS with Xcode Command Line Tools installed.
+Turn a MacBook's built-in trackpad into a native Windows Precision Touchpad over a trusted wired
+LAN. macOS captures raw contacts; Windows exposes them through KMDF and Virtual HID Framework (VHF),
+so scrolling, pinch zoom, and system gestures are handled by the Windows touchpad stack rather than
+mouse-event emulation.
+
+> **Experimental:** the end-to-end prototype moves the Windows pointer and supports native
+> two-finger scrolling and pinch zoom. It currently requires a test-signed Windows driver and a
+> private macOS framework. It is not ready for unattended or security-sensitive deployment.
+
+## What works
+
+| Capability | Status |
+|---|---|
+| Raw built-in MacBook trackpad capture | Verified, 5 contacts at about 125 Hz |
+| Versioned MTP1 protocol over TCP | Implemented |
+| Reconnect, reset, timeout, and contact release | Implemented |
+| Windows VHF Precision Touchpad enumeration | Verified on Windows 11 x64 |
+| Pointer movement | Verified with real Mac input |
+| Native two-finger scrolling | Verified |
+| Native pinch zoom | Verified |
+| Three- and four-finger gestures | Pending wider real-device validation |
+| Pairing, authentication, and encryption | Not implemented |
+| Production driver signing and installer | Not implemented |
+
+## Architecture
+
+```text
+MacBook built-in trackpad
+    -> MultitouchSupport.framework
+    -> mac-touch-agent
+    -> MTP1 / TCP 39871
+    -> Windows receiver
+    -> fixed-size IOCTL
+    -> KMDF + VHF
+    -> Windows Precision Touchpad stack
+```
+
+The Mac sends complete raw contact frames, not gestures. Networking stays in user mode. The Windows
+driver accepts only a bounded, validated structure and submits a five-contact Precision Touchpad
+report through VHF.
+
+## Requirements
+
+### macOS
+
+- Apple Silicon MacBook with a built-in trackpad
+- Xcode Command Line Tools
+- Current prototype validated on modern macOS
+
+The capture path dynamically loads Apple's private `MultitouchSupport.framework`. Its ABI can
+change between macOS releases, and software using it is not suitable for the Mac App Store.
+
+### Windows
+
+- Windows 11 x64
+- Visual Studio 2026 with C++ desktop tools
+- Windows SDK/WDK 10.0.28000
+- Administrator access
+- Test-signing mode for the current driver package
+
+## Quick start
+
+### 1. Build and verify macOS capture
 
 ```sh
+make clean
 make
-./build/mac-capture-probe
-```
-
-Run for a fixed interval and save JSON Lines while keeping diagnostics separate:
-
-```sh
 ./build/mac-capture-probe --duration 10 > touches.jsonl
-```
-
-Touch the built-in trackpad while it runs. Frame records are written to stdout; device discovery,
-errors, and the final sampling-rate summary are written to stderr. Stop an unbounded run with
-Ctrl-C.
-
-Analyze a saved capture with:
-
-```sh
 python3 tools/analyze_capture.py touches.jsonl
 ```
 
-`overall_rate` in the live summary includes periods with no fingers on the pad. The analyzer's
-`active_device_interval_ms` and `estimated_hz` describe the hardware callback cadence while active.
+### 2. Prepare Windows
 
-## Current acceptance checks
+Build and install the KMDF/VHF driver and receiver first. The current bring-up and restart procedure
+is documented in:
 
-- The built-in device is discovered on Apple Silicon.
-- Contact IDs remain stable from touch-down through lift-off.
-- Five simultaneous contacts are reported.
-- The measured callback rate is approximately 100 Hz or better under movement.
-- Capture continues while Terminal is not focused.
+- [Complete Windows setup guide (Chinese)](docs/WINDOWS_SETUP.zh-CN.md)
+- [Windows restart and integration handoff](docs/WINDOWS_RESTART_HANDOFF.md)
+- [VHF startup issue and resolution](docs/VHF_STARTUP_ISSUE.md)
 
-The private ABI declarations are isolated in `mac/Probe/MultitouchSupportABI.h`. If a future macOS
-release changes the structure layout or required symbols, the probe fails near startup instead of
-silently feeding data into the eventual network protocol.
+From an Administrator PowerShell at the repository root:
 
-## Stream to a receiver
-
-Start the reference receiver on the destination machine or locally:
-
-```sh
-python3 tools/debug_receiver.py
+```powershell
+powershell -ExecutionPolicy Bypass -File .\windows\tools\prepare_receiver.ps1
 ```
 
-Then point the Mac agent at its IP address. TCP port 39871 is the default:
+The script configures a Private/LocalSubnet firewall rule, starts the receiver, and prints the exact
+Mac command.
+
+### 3. Stream the trackpad
 
 ```sh
-./build/mac-touch-agent 192.168.1.20
+nc -vz WINDOWS_IP 39871
+./build/mac-touch-agent WINDOWS_IP 39871
 ```
 
-For a bounded test or a non-default port:
+Stop with `Ctrl-C`. On disconnect or a 200 ms active-contact timeout, Windows releases all contacts.
+
+The agent does not intercept local macOS input. If desired, configure macOS to ignore the built-in
+trackpad while an external mouse is present under Accessibility → Pointer Control.
+
+## Repository layout
+
+```text
+mac/            raw contact probe and TCP agent
+protocol/       authoritative MTP1 wire codec
+windows/driver/ KMDF VHF source driver
+windows/receiver/
+                TCP parser, contact mapping, and driver IOCTL client
+windows/tests/  parser and session tests
+windows/tools/  Windows preparation and synthetic-input tools
+tools/          macOS capture analyzer and reference receiver
+docs/           protocol, integration, and bring-up notes
+```
+
+## Protocol and safety properties
+
+MTP1 uses a fixed 36-byte big-endian header and up to ten 44-byte contact records. Every TCP session
+starts with `HELLO`, then `RESET`, followed by strictly increasing `FRAME` messages. The Windows
+receiver rejects malformed lengths, duplicate IDs, non-finite values, sequence discontinuities, and
+oversized contact sets.
+
+See [Windows receiver handoff](docs/WINDOWS_HANDOFF.md) for the byte-level specification.
+
+This prototype listens on a trusted LAN without authentication or encryption. Do not expose TCP
+39871 to a public network.
+
+## Development
+
+Run the portable protocol test on macOS:
 
 ```sh
-./build/mac-touch-agent 192.168.1.20 40000 --duration 15
+make test
 ```
 
-The agent reconnects automatically, uses `TCP_NODELAY`, and keeps network writes off the private
-framework callback thread. A reconnect or queue overflow emits a RESET so the receiver can release
-all active contacts safely.
+Run Windows receiver tests from a Developer PowerShell:
 
-The versioned wire format and Windows implementation contract are documented in
-`docs/WINDOWS_HANDOFF.md`.
+```powershell
+cmake -S windows -B out\windows -A x64
+cmake --build out\windows --config Release
+ctest --test-dir out\windows -C Release --output-on-failure
+```
+
+Contributions should keep networking out of kernel mode, preserve complete-frame semantics, and add
+tests for protocol or contact-lifecycle changes. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Roadmap
+
+- Validate three- and four-finger gestures with multiple MacBook generations
+- Package the Windows receiver as a service
+- Add device pairing, authentication, and encrypted transport
+- Add production signing and an installer
+- Test sleep/wake, network transitions, and long-duration recovery
+- Add a stable public-API fallback for reduced-function macOS capture
+
+## License
+
+The project is licensed under the [Apache License 2.0](LICENSE). This permissive license supports
+commercial and non-commercial use and includes an explicit contributor patent grant.
+
+Some Windows Precision Touchpad report semantics were adapted from the MIT-licensed SPI portion of
+`imbushuo/mac-precision-touchpad`. GPL-licensed implementations were studied only as architectural
+references and are not included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
+[the reuse assessment](docs/OPEN_SOURCE_REUSE.md).
+
+Apple, MacBook, macOS, Microsoft, Windows, and Precision Touchpad are trademarks of their respective
+owners. This project is independent and is not endorsed by Apple or Microsoft.
