@@ -1,4 +1,4 @@
-# MacBook 原生精确式触控板桥接
+# MacBook 触控板桥接
 
 [English](README.md) · [Windows 交接文档](docs/WINDOWS_HANDOFF.md) · [许可证](LICENSE)
 
