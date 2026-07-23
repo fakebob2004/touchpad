@@ -6,15 +6,15 @@
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black.svg)](#环境要求)
 [![Windows](https://img.shields.io/badge/Windows-11%20x64-0078D4.svg)](#环境要求)
 
-## 为什么做这个项目？
+## 为什么？
 
 很多程序员已经习惯双手分工：
 
 - 右手使用鼠标，负责精确指向、选择、绘图或 CAD；
 - 左手负责滚动论文、文档、浏览器和代码，并进行双指缩放。
 
-Windows 上优秀的独立触控板并不多，但很多人的 Windows 主机旁边其实已经放着一台 MacBook。
-与其再买一块触控板，不如直接把 MacBook 的内建触控板变成 Windows 原生精确式触控板。
+Windows 上优秀的独立触控板并不多，但很多人的主机旁边其实已经放着一台 MacBook。
+与其再买一块触控板，不如直接把 MacBook 的触控板变成 Windows 触控板。
 
 ```text
 ┌─────────────────────────────┐
@@ -180,9 +180,9 @@ ctest --test-dir out\windows -C Release --output-on-failure
 ## 开发方式
 
 本原型从 macOS 可行性探针、MTP1 协议、Windows VHF 驱动到文档，**全程采用 GPT-5.6 Sol
-（Light）进行 vibe coding**，大约使用了一个周额度的 50%。
+（Light）进行 vibe coding**，大约使用了一个周额度的 60%。
 
-主要开发分为两个时段，每次约三小时。Windows 驱动曾在设备管理器中出现黄色感叹号；排查
+主要开发分耗时约三小时。Windows 驱动曾在设备管理器中出现黄色感叹号；排查
 `VhfCreate` 启动失败和缺失的 `vhf` lower filter 时，短暂让网页端高思考模式介入协助定位。
 
 真实设备操作、安装、风险决策和端到端验收由项目作者完成。AI 生成的代码在合并前均在实际
