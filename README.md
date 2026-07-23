@@ -65,8 +65,8 @@ For a bounded test or a non-default port:
 ```
 
 The agent reconnects automatically, uses `TCP_NODELAY`, and keeps network writes off the private
-framework callback thread. A reconnect or queue overflow emits a RESET so the receiver can release
-all active contacts safely.
+framework callback thread. A queue overflow forces a fresh connection and `HELLO`/`RESET` epoch so
+the receiver can release all active contacts safely without accepting a sequence gap.
 
 The versioned wire format and Windows implementation contract are documented in
 `docs/WINDOWS_HANDOFF.md`.

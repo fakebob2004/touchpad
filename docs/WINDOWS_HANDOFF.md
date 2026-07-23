@@ -130,9 +130,10 @@ The Windows service must also perform RESET behavior when:
 - parsing or validation fails;
 - the service or driver is stopping.
 
-The Mac sender uses a 256-frame nonblocking queue. On queue overflow it discards stale queued frames,
-then enqueues RESET followed by the newest complete frame. This prioritizes current state over stale
-motion and prevents stuck contacts.
+The Mac sender uses a 256-frame nonblocking queue. On queue overflow it discards stale queued frames
+and forces a reconnect. The new connection starts with HELLO followed by RESET before accepting new
+complete frames. This avoids both stale motion and an invalid sequence gap, while the old connection
+close causes Windows to release all active contacts.
 
 ## Contact ID to HID slot mapping
 
@@ -197,12 +198,12 @@ Clamp normalized coordinates before converting to the HID logical range:
 
 ```text
 hid_x = round(clamp(x, 0, 1) * logical_max_x)
-hid_y = round(clamp(y, 0, 1) * logical_max_y)
+hid_y = round(clamp(1 - y, 0, 1) * logical_max_y)
 ```
 
-Do not invert Y until an end-to-end cursor/gesture test proves it is necessary. Keep physical size
-and logical maximum consistent in the HID descriptor; Windows gesture thresholds can depend on the
-declared physical dimensions.
+Real Mac-to-Windows testing confirmed that MultitouchSupport Y grows in the opposite direction from
+the Windows PTP surface, so the receiver inverts Y. Keep physical size and logical maximum consistent
+in the HID descriptor; Windows gesture thresholds can depend on the declared physical dimensions.
 
 ## Reference parser
 

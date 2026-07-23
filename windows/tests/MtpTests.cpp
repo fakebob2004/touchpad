@@ -110,8 +110,12 @@ void TestLifecycleSlotsAndLift() {
     const std::array first{WireContact{100, 7, -1.0f, 2.0f}, WireContact{200, 7, 0.5f, 0.25f}};
     const auto report1 = session.Process(mtp::DecodeMessage(Encode(mtp::MessageType::Frame, 12, first)));
     Check(report1 && report1->active_contact_count == 2, "active count mismatch");
-    Check(report1->contacts[0].slot == 0 && report1->contacts[0].x == 0, "slot/clamp mismatch");
+    Check(report1->contacts[0].slot == 0 && report1->contacts[0].x == 0 &&
+          report1->contacts[0].y == 0, "slot/clamp/inverted-y mismatch");
     Check(report1->contacts[1].slot == 1, "second slot mismatch");
+    Check(report1->contacts[1].y ==
+              static_cast<std::uint16_t>(std::lround(0.75f * MTP_COORDINATE_LOGICAL_MAX)),
+          "Y axis was not inverted");
     const std::array second{WireContact{200, 7, 0.6f, 0.3f}};
     const auto report2 = session.Process(mtp::DecodeMessage(Encode(mtp::MessageType::Frame, 13, second)));
     Check(report2 && report2->active_contact_count == 1 && report2->report_contact_count == 2,

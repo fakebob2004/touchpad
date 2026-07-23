@@ -21,6 +21,7 @@ public:
 private:
     [[nodiscard]] MTP_IOCTL_FRAME ReleaseAll(std::uint32_t sequence, bool reset);
     [[nodiscard]] static std::uint16_t ToLogical(float value);
+    [[nodiscard]] static std::uint16_t ToLogicalY(float value);
     [[nodiscard]] std::uint8_t AllocateSlot() const;
 
     bool hello_seen_{};

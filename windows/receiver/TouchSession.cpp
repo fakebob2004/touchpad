@@ -87,7 +87,7 @@ std::optional<MTP_IOCTL_FRAME> TouchSession::Process(const Message& message) {
         target.slot = slot;
         target.flags = source.flags;
         target.x = ToLogical(source.x);
-        target.y = ToLogical(source.y);
+        target.y = ToLogicalY(source.y);
         if ((source.flags & kTip) != 0) {
             ++output.active_contact_count;
         }
@@ -141,7 +141,7 @@ MTP_IOCTL_FRAME TouchSession::ReleaseAll(std::uint32_t sequence, bool reset) {
         target.slot = slot;
         target.flags = source.flags & static_cast<std::uint8_t>(~kTip);
         target.x = ToLogical(source.x);
-        target.y = ToLogical(source.y);
+        target.y = ToLogicalY(source.y);
     }
     slots_.clear();
     previous_contacts_.fill(std::nullopt);
@@ -151,6 +151,12 @@ MTP_IOCTL_FRAME TouchSession::ReleaseAll(std::uint32_t sequence, bool reset) {
 std::uint16_t TouchSession::ToLogical(float value) {
     const float clamped = std::clamp(value, 0.0f, 1.0f);
     return static_cast<std::uint16_t>(std::lround(clamped * MTP_COORDINATE_LOGICAL_MAX));
+}
+
+std::uint16_t TouchSession::ToLogicalY(float value) {
+    // MultitouchSupport grows Y upward from the bottom edge. Windows Precision
+    // Touchpad coordinates grow downward from the top edge.
+    return ToLogical(1.0f - value);
 }
 
 std::uint8_t TouchSession::AllocateSlot() const {

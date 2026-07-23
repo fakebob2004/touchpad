@@ -155,6 +155,11 @@ Then run:
 ./build/mac-touch-agent 192.168.31.115 39871
 ```
 
+The agent does not intercept or suppress local macOS events. If the Mac should
+ignore its built-in trackpad while an external mouse is present, use the macOS
+system setting for that behavior rather than granting the agent global event
+interception privileges.
+
 The receiver should begin with:
 
 ```text
@@ -222,7 +227,8 @@ Use this order:
 2. Start `mtp-receiver-diag2.exe` on Windows.
 3. Start `mac-touch-agent` on macOS.
 4. Place one finger on the Mac trackpad and move it slowly.
-5. Confirm the Windows pointer follows without jumps.
+5. Confirm the Windows pointer follows without jumps and vertical direction is
+   correct. The Windows receiver intentionally maps `hid_y = 1 - mac_y`.
 6. Lift the finger and confirm the pointer stops immediately.
 7. Test two-finger scrolling.
 8. Test two-finger pinch.
