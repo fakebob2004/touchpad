@@ -157,9 +157,18 @@ Then run:
 ```
 
 The agent does not intercept or suppress local macOS events. If the Mac should
-ignore its built-in trackpad while an external mouse is present, use the macOS
-system setting for that behavior rather than granting the agent global event
-interception privileges.
+ignore its built-in trackpad while an external mouse is present, use:
+
+```text
+System Settings
+-> Accessibility
+-> Pointer Control
+-> Mouse & Trackpad
+-> Ignore built-in trackpad when mouse or wireless trackpad is present
+```
+
+See `docs/MAC_SETUP.md` for operation and `docs/MAC_DEVELOPMENT.md` for the
+capture, protocol, reconnect, coordinate, and local-input design history.
 
 The receiver should begin with:
 

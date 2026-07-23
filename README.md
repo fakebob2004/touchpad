@@ -77,6 +77,9 @@ make
 python3 tools/analyze_capture.py touches.jsonl
 ```
 
+See the [complete macOS operation guide](docs/MAC_SETUP.md) and
+[macOS development notes](docs/MAC_DEVELOPMENT.md).
+
 ### 2. Prepare Windows
 
 Build and install the KMDF/VHF driver and receiver first. The current bring-up and restart procedure
@@ -104,8 +107,13 @@ nc -vz WINDOWS_IP 39871
 
 Stop with `Ctrl-C`. On disconnect or a 200 ms active-contact timeout, Windows releases all contacts.
 
-The agent does not intercept local macOS input. If desired, configure macOS to ignore the built-in
-trackpad while an external mouse is present under Accessibility → Pointer Control.
+The agent does not intercept local macOS input. To dedicate the built-in trackpad to Windows while
+an external mouse controls the Mac, enable:
+
+```text
+System Settings → Accessibility → Pointer Control → Mouse & Trackpad
+→ Ignore built-in trackpad when mouse or wireless trackpad is present
+```
 
 ## Repository layout
 

@@ -75,6 +75,9 @@ make
 python3 tools/analyze_capture.py touches.jsonl
 ```
 
+完整说明见 [macOS 安装与操作指南](docs/MAC_SETUP.zh-CN.md) 和
+[macOS 端开发记录](docs/MAC_DEVELOPMENT.zh-CN.md)。
+
 ### 2. 准备 Windows
 
 先构建并安装 KMDF/VHF 驱动和 Receiver。当前启动与重启流程见：
@@ -100,8 +103,12 @@ nc -vz WINDOWS_IP 39871
 
 使用 `Ctrl-C` 停止。连接断开或活跃触点超过 200ms 没有更新时，Windows 会释放全部触点。
 
-Agent 不拦截 macOS 本机输入。如果希望外接鼠标存在时禁用内建触控板，请使用 macOS 的
-“辅助功能 → 指针控制”系统设置。
+Agent 不拦截 macOS 本机输入。如果希望外接鼠标控制 Mac、内建触控板专门控制 Windows，请开启：
+
+```text
+系统设置 → 辅助功能 → 指针控制 → 鼠标与触控板
+→ 有鼠标或无线触控板时忽略内建触控板
+```
 
 ## 仓库结构
 
