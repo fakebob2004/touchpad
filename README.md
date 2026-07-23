@@ -6,10 +6,34 @@
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black.svg)](#requirements)
 [![Windows](https://img.shields.io/badge/Windows-11%20x64-0078D4.svg)](#requirements)
 
-Turn a MacBook's built-in trackpad into a native Windows Precision Touchpad over a trusted wired
-LAN. macOS captures raw contacts; Windows exposes them through KMDF and Virtual HID Framework (VHF),
-so scrolling, pinch zoom, and system gestures are handled by the Windows touchpad stack rather than
-mouse-event emulation.
+## Why?
+
+Many programmers already work with both hands:
+
+- the right hand uses a mouse for precise pointing, selection, drawing, or CAD;
+- the left hand scrolls documents, papers, browsers, and code, and performs pinch zoom.
+
+Great standalone Windows touchpads are uncommon, but many desks already have a MacBook sitting next
+to the Windows PC. Instead of buying another touchpad, this project turns the MacBook's built-in
+trackpad into a native Windows Precision Touchpad.
+
+```text
+┌─────────────────────────────┐
+│          Windows PC         │
+└─────────────────────────────┘
+
+         ⌨ Keyboard
+
+MacBook trackpad          Mouse
+   left hand            right hand
+ scroll / zoom       precise operation
+```
+
+> **Don't buy another touchpad. Reuse the best one you already have.**
+
+macOS captures raw contacts over a trusted wired LAN; Windows exposes them through KMDF and Virtual
+HID Framework (VHF), so scrolling, pinch zoom, and system gestures are handled by the native Windows
+touchpad stack rather than mouse-event emulation.
 
 > **Experimental:** the end-to-end prototype moves the Windows pointer and supports native
 > two-finger scrolling and pinch zoom. It currently requires a test-signed Windows driver and a
@@ -159,6 +183,21 @@ ctest --test-dir out\windows -C Release --output-on-failure
 
 Contributions should keep networking out of kernel mode, preserve complete-frame semantics, and add
 tests for protocol or contact-lifecycle changes. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Development process
+
+This prototype was developed end to end through **vibe coding with GPT-5.6 Sol (Light)**, from the
+macOS feasibility probe and MTP1 protocol to the Windows VHF driver and documentation. It used
+approximately 50% of one weekly model allowance.
+
+The work was completed in two main development sessions of roughly three hours each. When the
+Windows driver showed the Device Manager yellow warning icon, a web high-reasoning mode briefly
+joined the investigation to isolate the `VhfCreate` startup failure and its missing `vhf` lower
+filter.
+
+Physical-device actions, installation, risk decisions, and end-to-end acceptance tests were
+performed by the project owner. AI-generated code was compiled and tested on the actual Mac and
+Windows machines before being merged.
 
 ## Roadmap
 

@@ -6,9 +6,33 @@
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black.svg)](#环境要求)
 [![Windows](https://img.shields.io/badge/Windows-11%20x64-0078D4.svg)](#环境要求)
 
-通过可信的有线局域网，把 MacBook 内建触控板变成 Windows 原生精确式触控板。macOS
-负责采集原始触点，Windows 通过 KMDF 和 Virtual HID Framework（VHF）将其呈现为触控板，
-滚动、双指缩放和系统手势均由 Windows 触控板栈处理，而不是模拟鼠标事件。
+## 为什么做这个项目？
+
+很多程序员已经习惯双手分工：
+
+- 右手使用鼠标，负责精确指向、选择、绘图或 CAD；
+- 左手负责滚动论文、文档、浏览器和代码，并进行双指缩放。
+
+Windows 上优秀的独立触控板并不多，但很多人的 Windows 主机旁边其实已经放着一台 MacBook。
+与其再买一块触控板，不如直接把 MacBook 的内建触控板变成 Windows 原生精确式触控板。
+
+```text
+┌─────────────────────────────┐
+│          Windows PC         │
+└─────────────────────────────┘
+
+           ⌨ 键盘
+
+MacBook 触控板             鼠标
+    左手                  右手
+  滚动 / 缩放            精确操作
+```
+
+> **不用再买 Windows 触控板，把你已有的 MacBook 利用起来。**
+
+macOS 通过可信的有线局域网发送原始触点；Windows 使用 KMDF 和 Virtual HID Framework
+（VHF）将其呈现为原生触控板。滚动、双指缩放和系统手势由 Windows 触控板栈处理，而不是
+模拟鼠标事件。
 
 > **实验性项目：** 当前端到端原型已经能使用真实 Mac 输入移动 Windows 指针，并支持原生
 > 双指滚动和双指缩放。现阶段仍需要 Windows 测试签名驱动和 macOS 私有框架，不适合无人值守
@@ -152,6 +176,17 @@ ctest --test-dir out\windows -C Release --output-on-failure
 
 贡献代码时应保持网络逻辑位于用户态、保持完整帧语义，并为协议或触点生命周期变化增加测试。
 详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 开发方式
+
+本原型从 macOS 可行性探针、MTP1 协议、Windows VHF 驱动到文档，**全程采用 GPT-5.6 Sol
+（Light）进行 vibe coding**，大约使用了一个周额度的 50%。
+
+主要开发分为两个时段，每次约三小时。Windows 驱动曾在设备管理器中出现黄色感叹号；排查
+`VhfCreate` 启动失败和缺失的 `vhf` lower filter 时，短暂让网页端高思考模式介入协助定位。
+
+真实设备操作、安装、风险决策和端到端验收由项目作者完成。AI 生成的代码在合并前均在实际
+Mac 和 Windows 机器上完成编译与测试。
 
 ## 路线图
 
