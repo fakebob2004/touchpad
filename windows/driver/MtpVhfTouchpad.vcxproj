@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C8B09958-38CC-4B6C-A0EE-2607C3714EC4}</ProjectGuid>
+    <RootNamespace>MtpVhfTouchpad</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <!-- WDK 26100 NuGet ships VS 17 task assemblies; MSBuild 18 can load them. -->
+    <VisualStudioVersion>17.0</VisualStudioVersion>
+    <!-- The 26100 x64 NuGet omits ApiValidator.exe; Inf2Cat still runs below. -->
+    <ApiValidator_Enable>false</ApiValidator_Enable>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion><UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset><ConfigurationType>Driver</ConfigurationType>
+    <DriverType>KMDF</DriverType><DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <KMDF_VERSION_MAJOR>1</KMDF_VERSION_MAJOR><KMDF_VERSION_MINOR>33</KMDF_VERSION_MINOR>
+    <SignMode>Off</SignMode>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion><UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset><ConfigurationType>Driver</ConfigurationType>
+    <DriverType>KMDF</DriverType><DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <KMDF_VERSION_MAJOR>1</KMDF_VERSION_MAJOR><KMDF_VERSION_MINOR>33</KMDF_VERSION_MINOR>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><DisableSpecificWarnings>4005;4083;%(DisableSpecificWarnings)</DisableSpecificWarnings><AdditionalIncludeDirectories>$(ProjectDir)..\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <Link><AdditionalDependencies>VhfKm.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <Inf><TimeStamp>0.1.0.7</TimeStamp></Inf>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="Driver.c" /><ClCompile Include="Descriptor.c" /></ItemGroup>
+  <ItemGroup><ClInclude Include="Driver.h" /><ClInclude Include="..\shared\TouchpadIoctl.h" /></ItemGroup>
+  <ItemGroup><Inf Include="MtpVhfTouchpad.inf" /></ItemGroup>
+  <ItemGroup><FilesToPackage Include="$(TargetPath)" Condition="'$(ConfigurationType)'=='Driver'" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.26100.6584" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

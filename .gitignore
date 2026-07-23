@@ -1,3 +1,8 @@
 .DS_Store
 build/
+out/
 *.jsonl
+*.obj
+third_party/
+windows/driver/obj/
+windows/driver/x64/
