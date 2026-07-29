@@ -12,7 +12,7 @@ HEADER = struct.Struct(">4sHHIIHHQQ")
 CONTACT = struct.Struct(">IBBH9f")
 
 
-def message(message_type: int, sequence: int, contacts=()) -> bytes:
+def message(message_type: int, sequence: int, contacts=(), button=False) -> bytes:
     payload = b"".join(
         CONTACT.pack(
             identifier,
@@ -34,7 +34,7 @@ def message(message_type: int, sequence: int, contacts=()) -> bytes:
     now_us = time.monotonic_ns() // 1_000
     return HEADER.pack(
         b"MTP1", 1, message_type, len(payload), sequence,
-        len(contacts), 0, now_us, now_us
+        len(contacts), 1 if button and message_type == 2 else 0, now_us, now_us
     ) + payload
 
 
@@ -44,6 +44,11 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=39871)
     parser.add_argument("--duration", type=float, default=3.0)
     parser.add_argument("--rate", type=float, default=125.0)
+    parser.add_argument(
+        "--press",
+        action="store_true",
+        help="hold Precision Touchpad Button 1 during the middle third",
+    )
     args = parser.parse_args()
 
     sequence = 1
@@ -59,7 +64,10 @@ def main() -> None:
         while (elapsed := time.monotonic() - start) < args.duration:
             x = 0.5 + 0.2 * math.sin(elapsed * math.tau / 1.5)
             velocity_x = (x - previous_x) * args.rate
-            client.sendall(message(2, sequence, ((1, x, 0.5, velocity_x, 0.0),)))
+            button = args.press and args.duration / 3 <= elapsed < args.duration * 2 / 3
+            client.sendall(
+                message(2, sequence, ((1, x, 0.5, velocity_x, 0.0),), button)
+            )
             sequence += 1
             previous_x = x
             time.sleep(period)

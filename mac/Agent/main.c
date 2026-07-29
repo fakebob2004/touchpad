@@ -47,14 +47,22 @@ typedef struct {
     atomic_uint_fast64_t sent;
     atomic_uint_fast64_t dropped;
     atomic_uint_fast64_t reconnects;
+    atomic_bool button_down;
+    atomic_uint_fast64_t button_events;
+    TPFrame latest_frame;
+    pthread_mutex_t frame_mutex;
 } Agent;
 
 typedef CFArrayRef (*CreateListFn)(void);
 typedef void (*RegisterCallbackFn)(MTDeviceRef, MTContactFrameCallback);
+typedef void (*RegisterButtonCallbackFn)(MTDeviceRef, MTButtonStateCallback, void *);
 typedef void (*StartFn)(MTDeviceRef, int32_t);
 typedef bool (*IsBuiltInFn)(MTDeviceRef);
 
 static Agent g_agent;
+
+static void queue_clear(MessageQueue *queue);
+static bool queue_push(MessageQueue *queue, const WireMessage *message);
 
 static uint64_t monotonic_microseconds(void) {
     struct timespec value;
@@ -73,6 +81,53 @@ static uint8_t flags_for_state(int32_t state) {
         flags |= TP_CONTACT_TIP;
     }
     return flags;
+}
+
+static void enqueue_frame_locked(Agent *agent, TPFrame *frame) {
+    frame->sequence =
+        atomic_fetch_add_explicit(&agent->sequence, 1, memory_order_relaxed) + 1;
+    frame->capture_time_us = monotonic_microseconds();
+    WireMessage message;
+    message.length =
+        tp_encode_message(TP_MESSAGE_FRAME, frame, message.bytes, sizeof(message.bytes));
+    if (message.length == 0 || !queue_push(&agent->queue, &message)) {
+        /*
+         * Assigned but unsent sequence numbers cannot be skipped inside a
+         * strict MTP1 session. Reconnect to establish a fresh HELLO/RESET epoch.
+         */
+        atomic_store_explicit(&agent->connected, false, memory_order_release);
+        atomic_store_explicit(&agent->reconnect_requested, true, memory_order_relaxed);
+        queue_clear(&agent->queue);
+        atomic_fetch_add_explicit(&agent->dropped, 1, memory_order_relaxed);
+    }
+}
+
+static void button_callback(MTDeviceRef device,
+                            int32_t pressed,
+                            int32_t released,
+                            void *context) {
+    (void)device;
+    Agent *agent = context;
+    if (pressed != 0) {
+        atomic_store_explicit(&agent->button_down, true, memory_order_release);
+    }
+    if (released != 0) {
+        atomic_store_explicit(&agent->button_down, false, memory_order_release);
+    }
+    atomic_fetch_add_explicit(&agent->button_events, 1, memory_order_relaxed);
+    if (!atomic_load_explicit(&agent->connected, memory_order_acquire)) {
+        return;
+    }
+
+    pthread_mutex_lock(&agent->frame_mutex);
+    TPFrame frame = agent->latest_frame;
+    frame.flags = atomic_load_explicit(&agent->button_down, memory_order_acquire)
+                      ? TP_FRAME_BUTTON
+                      : 0;
+    frame.device_time_us = 0;
+    agent->latest_frame = frame;
+    enqueue_frame_locked(agent, &frame);
+    pthread_mutex_unlock(&agent->frame_mutex);
 }
 
 static void queue_clear(MessageQueue *queue) {
@@ -196,6 +251,9 @@ static void *sender_main(void *context) {
             continue;
         }
         atomic_store_explicit(&agent->reconnect_requested, false, memory_order_relaxed);
+        pthread_mutex_lock(&agent->frame_mutex);
+        memset(&agent->latest_frame, 0, sizeof(agent->latest_frame));
+        pthread_mutex_unlock(&agent->frame_mutex);
         atomic_store_explicit(&agent->connected, true, memory_order_release);
         fprintf(stderr, "connected to %s:%s\n", agent->host, agent->port);
 
@@ -232,11 +290,13 @@ static void contact_callback(MTDeviceRef device,
         return;
     }
 
+    pthread_mutex_lock(&g_agent.frame_mutex);
     TPFrame frame;
     memset(&frame, 0, sizeof(frame));
-    frame.sequence = atomic_fetch_add_explicit(&g_agent.sequence, 1, memory_order_relaxed) + 1;
-    frame.capture_time_us = monotonic_microseconds();
     frame.device_time_us = timestamp > 0 ? (uint64_t)(timestamp * 1000000.0) : 0;
+    frame.flags = atomic_load_explicit(&g_agent.button_down, memory_order_acquire)
+                      ? TP_FRAME_BUTTON
+                      : 0;
     frame.contact_count = (uint16_t)touch_count;
     for (size_t index = 0; index < touch_count; ++index) {
         const MTTouch *source = &touches[index];
@@ -254,22 +314,9 @@ static void contact_callback(MTDeviceRef device,
         destination->minor_axis = source->minor_axis;
         destination->density = source->density;
     }
-
-    WireMessage message;
-    message.length = tp_encode_message(TP_MESSAGE_FRAME, &frame, message.bytes, sizeof(message.bytes));
-    if (message.length == 0) {
-        atomic_fetch_add_explicit(&g_agent.dropped, 1, memory_order_relaxed);
-        return;
-    }
-    if (!queue_push(&g_agent.queue, &message)) {
-        // Assigned but unsent sequence numbers cannot be skipped inside a
-        // strict MTP1 session. Reconnect to establish a fresh HELLO/RESET epoch
-        // instead of attempting to continue after discarded queued frames.
-        atomic_store_explicit(&g_agent.connected, false, memory_order_release);
-        atomic_store_explicit(&g_agent.reconnect_requested, true, memory_order_relaxed);
-        queue_clear(&g_agent.queue);
-        atomic_fetch_add_explicit(&g_agent.dropped, 1, memory_order_relaxed);
-    }
+    g_agent.latest_frame = frame;
+    enqueue_frame_locked(&g_agent, &frame);
+    pthread_mutex_unlock(&g_agent.frame_mutex);
 }
 
 static void stop_agent(int signal_number) {
@@ -326,6 +373,7 @@ int main(int argc, char **argv) {
     atomic_init(&g_agent.reconnect_requested, false);
     pthread_mutex_init(&g_agent.queue.mutex, NULL);
     pthread_cond_init(&g_agent.queue.available, NULL);
+    pthread_mutex_init(&g_agent.frame_mutex, NULL);
     signal(SIGINT, stop_agent);
     signal(SIGTERM, stop_agent);
     signal(SIGPIPE, SIG_IGN);
@@ -344,10 +392,13 @@ int main(int argc, char **argv) {
     }
     CreateListFn create_list = NULL;
     RegisterCallbackFn register_callback = NULL;
+    RegisterButtonCallbackFn register_button_callback = NULL;
     StartFn start = NULL;
     IsBuiltInFn is_built_in = NULL;
     *(void **)(&create_list) = load_symbol(framework, "MTDeviceCreateList", true);
     *(void **)(&register_callback) = load_symbol(framework, "MTRegisterContactFrameCallback", true);
+    *(void **)(&register_button_callback) =
+        load_symbol(framework, "MTRegisterButtonStateCallback", false);
     *(void **)(&start) = load_symbol(framework, "MTDeviceStart", true);
     *(void **)(&is_built_in) = load_symbol(framework, "MTDeviceIsBuiltIn", false);
     if (create_list == NULL || register_callback == NULL || start == NULL) {
@@ -373,6 +424,9 @@ int main(int argc, char **argv) {
                 continue;
             }
             register_callback(device, contact_callback);
+            if (register_button_callback != NULL) {
+                register_button_callback(device, button_callback, &g_agent);
+            }
             start(device, 0);
             ++started;
         }
@@ -389,7 +443,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    fprintf(stderr, "streaming %d built-in trackpad(s) to %s:%s\n", started, host, port);
+    fprintf(stderr,
+            "streaming %d built-in trackpad(s) to %s:%s; physical button=%s\n",
+            started,
+            host,
+            port,
+            register_button_callback != NULL ? "enabled" : "unavailable");
     const uint64_t started_at = monotonic_microseconds();
     while (atomic_load_explicit(&g_agent.running, memory_order_relaxed)) {
         usleep(100000);
@@ -399,10 +458,11 @@ int main(int argc, char **argv) {
     }
     pthread_join(sender, NULL);
     fprintf(stderr,
-            "summary: captured=%llu sent=%llu dropped=%llu connections=%llu\n",
+            "summary: captured=%llu sent=%llu dropped=%llu connections=%llu button_events=%llu\n",
             (unsigned long long)atomic_load_explicit(&g_agent.captured, memory_order_relaxed),
             (unsigned long long)atomic_load_explicit(&g_agent.sent, memory_order_relaxed),
             (unsigned long long)atomic_load_explicit(&g_agent.dropped, memory_order_relaxed),
-            (unsigned long long)atomic_load_explicit(&g_agent.reconnects, memory_order_relaxed));
+            (unsigned long long)atomic_load_explicit(&g_agent.reconnects, memory_order_relaxed),
+            (unsigned long long)atomic_load_explicit(&g_agent.button_events, memory_order_relaxed));
     return 0;
 }

@@ -29,6 +29,8 @@ macOS 端代码有意保持精简。手势识别和原生精确式触控板协�
 - Contact ID 在一次触点生命周期内保持稳定；
 - 活动状态下中位帧间隔为 8ms，约 125Hz；
 - 坐标、速度、面积、椭圆轴、角度和密度字段都有有效数据；
+- 私有符号 `MTRegisterButtonStateCallback` 可用，可直接报告物理按下/松开，而无需用触点
+  density 猜测压力；
 - 已记录测试中没有非法帧和重复 ID。
 
 探针把 JSON Lines 写到 stdout，把诊断写到 stderr。私有框架最初会向 stdout 输出一行硬件
@@ -40,11 +42,15 @@ macOS 端代码有意保持精简。手势识别和原生精确式触控板协�
 设置。MTP1 因此发送完整的当前触点集合：
 
 ```text
-identifier + state + flags + x/y + geometry + monotonic timestamp
+identifier + state + flags + x/y + geometry + button state + monotonic timestamp
 ```
 
 Windows 将触点映射到 HID slot，并交给精确式触控板栈识别手势。因此双指滚动和双指缩放能
 原生工作，而不需要 Mac 端手势代码。
+
+物理单击同样不在 Mac 端识别为手势。Agent 将私有框架的按键变化写入 MTP1 帧级 `BUTTON`
+位，并在按下和松开时立即使用最近一次完整触点快照发送一帧，避免松开晚于最后一个触点帧时
+让 Windows 遗留“按住”状态。
 
 ## 4. 实时性与重连
 

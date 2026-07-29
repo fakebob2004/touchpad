@@ -44,7 +44,8 @@ void PutF32(std::vector<std::uint8_t>& bytes, std::size_t offset, float value) {
 struct WireContact { std::uint32_t id; std::uint8_t flags; float x; float y; };
 
 std::vector<std::uint8_t> Encode(mtp::MessageType type, std::uint32_t sequence,
-                                 std::span<const WireContact> contacts = {}) {
+                                 std::span<const WireContact> contacts = {},
+                                 std::uint16_t flags = 0) {
     const std::size_t count = type == mtp::MessageType::Frame ? contacts.size() : 0;
     std::vector<std::uint8_t> bytes(mtp::kHeaderSize + count * mtp::kContactSize, 0);
     bytes[0] = 'M'; bytes[1] = 'T'; bytes[2] = 'P'; bytes[3] = '1';
@@ -53,6 +54,7 @@ std::vector<std::uint8_t> Encode(mtp::MessageType type, std::uint32_t sequence,
     PutU32(bytes, 8, static_cast<std::uint32_t>(count * mtp::kContactSize));
     PutU32(bytes, 12, sequence);
     PutU16(bytes, 16, static_cast<std::uint16_t>(count));
+    PutU16(bytes, 18, flags);
     PutU64(bytes, 20, 1000000 + sequence);
     PutU64(bytes, 28, 2000000 + sequence);
     for (std::size_t index = 0; index < count; ++index) {
@@ -100,6 +102,12 @@ void TestMalformedInput() {
     const std::array duplicates{WireContact{7, 7, 0.1f, 0.2f}, WireContact{7, 7, 0.3f, 0.4f}};
     bytes = Encode(mtp::MessageType::Frame, 1, duplicates);
     ExpectProtocolError([&] { (void)mtp::DecodeMessage(bytes); });
+    bytes = Encode(mtp::MessageType::Hello, 1);
+    PutU16(bytes, 18, mtp::kFrameButton);
+    ExpectProtocolError([&] { (void)mtp::DecodeMessage(bytes); });
+    bytes = Encode(mtp::MessageType::Frame, 1);
+    PutU16(bytes, 18, 0x8000);
+    ExpectProtocolError([&] { (void)mtp::DecodeMessage(bytes); });
 }
 
 void TestLifecycleSlotsAndLift() {
@@ -125,6 +133,10 @@ void TestLifecycleSlotsAndLift() {
     const std::array third{WireContact{300, 7, 0.2f, 0.2f}, WireContact{200, 7, 0.7f, 0.4f}};
     const auto report3 = session.Process(mtp::DecodeMessage(Encode(mtp::MessageType::Frame, 14, third)));
     Check(report3 && report3->contacts[0].slot == 0, "lowest slot was not reused");
+    const auto pressed = session.Process(
+        mtp::DecodeMessage(Encode(mtp::MessageType::Frame, 15, third, mtp::kFrameButton)));
+    Check(pressed && (pressed->flags & MTP_IOCTL_FRAME_BUTTON) != 0,
+          "button state was not handed to the driver");
 }
 
 void TestSequenceAndDisconnectRelease() {
@@ -137,6 +149,19 @@ void TestSequenceAndDisconnectRelease() {
     const auto release = session.OnDisconnect();
     Check(release && release->report_contact_count == 1 && release->active_contact_count == 0,
           "disconnect did not release contact");
+}
+
+void TestButtonOnlyDisconnectRelease() {
+    mtp::TouchSession session;
+    (void)session.Process(mtp::DecodeMessage(Encode(mtp::MessageType::Hello, 1)));
+    (void)session.Process(mtp::DecodeMessage(Encode(mtp::MessageType::Reset, 2)));
+    const auto pressed = session.Process(
+        mtp::DecodeMessage(Encode(mtp::MessageType::Frame, 3, {}, mtp::kFrameButton)));
+    Check(pressed && (pressed->flags & MTP_IOCTL_FRAME_BUTTON) != 0,
+          "button-only press missing");
+    const auto release = session.OnDisconnect();
+    Check(release && (release->flags & MTP_IOCTL_FRAME_BUTTON) == 0,
+          "disconnect did not release button");
 }
 
 void TestSustainedRate() {
@@ -160,6 +185,7 @@ int main() {
         TestMalformedInput();
         TestLifecycleSlotsAndLift();
         TestSequenceAndDisconnectRelease();
+        TestButtonOnlyDisconnectRelease();
         TestSustainedRate();
         std::cout << "mtp-tests: ok\n";
         return 0;

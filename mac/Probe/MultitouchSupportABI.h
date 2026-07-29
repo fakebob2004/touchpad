@@ -43,6 +43,10 @@ typedef void (*MTContactFrameCallback)(MTDeviceRef device,
                                        size_t touch_count,
                                        double timestamp,
                                        size_t frame);
+typedef void (*MTButtonStateCallback)(MTDeviceRef device,
+                                      int32_t pressed,
+                                      int32_t released,
+                                      void *context);
 
 typedef CFArrayRef (*MTDeviceCreateListFn)(void);
 typedef void (*MTRegisterContactFrameCallbackFn)(MTDeviceRef, MTContactFrameCallback);

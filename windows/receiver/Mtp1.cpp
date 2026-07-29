@@ -57,8 +57,8 @@ std::size_t ValidateHeader(std::span<const std::uint8_t, kHeaderSize> header) {
     const std::uint32_t payload = ReadU32(header.data() + 8);
     const std::uint16_t count = ReadU16(header.data() + 16);
     const std::uint16_t flags = ReadU16(header.data() + 18);
-    if (flags != 0) {
-        throw ProtocolError("reserved header flags are nonzero");
+    if ((flags & ~kFrameButton) != 0 || (type != MessageType::Frame && flags != 0)) {
+        throw ProtocolError("invalid header flags");
     }
     if (count > kMaxContacts || payload != static_cast<std::uint32_t>(count * kContactSize)) {
         throw ProtocolError("invalid payload length or contact count");
@@ -83,6 +83,7 @@ Message DecodeMessage(std::span<const std::uint8_t> bytes) {
     Message message;
     message.type = ReadType(ReadU16(bytes.data() + 6));
     message.sequence = ReadU32(bytes.data() + 12);
+    message.flags = ReadU16(bytes.data() + 18);
     message.capture_time_us = ReadU64(bytes.data() + 20);
     message.device_time_us = ReadU64(bytes.data() + 28);
     const std::uint16_t count = ReadU16(bytes.data() + 16);

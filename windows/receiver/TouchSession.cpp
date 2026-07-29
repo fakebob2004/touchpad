@@ -40,6 +40,8 @@ std::optional<MTP_IOCTL_FRAME> TouchSession::Process(const Message& message) {
     MTP_IOCTL_FRAME output{};
     output.abi_version = MTP_IOCTL_ABI_VERSION;
     output.sequence = message.sequence;
+    output.flags = (message.flags & kFrameButton) != 0 ? MTP_IOCTL_FRAME_BUTTON : 0;
+    button_down_ = (message.flags & kFrameButton) != 0;
     output.scan_time_100us =
         static_cast<std::uint16_t>((message.capture_time_us / 100u) & 0xffffu);
     std::unordered_set<std::uint32_t> present;
@@ -145,6 +147,7 @@ MTP_IOCTL_FRAME TouchSession::ReleaseAll(std::uint32_t sequence, bool reset) {
     }
     slots_.clear();
     previous_contacts_.fill(std::nullopt);
+    button_down_ = false;
     return output;
 }
 

@@ -10,6 +10,7 @@ int main(void) {
         .sequence = 0x01020304,
         .capture_time_us = 0x0102030405060708ULL,
         .device_time_us = 125000001,
+        .flags = TP_FRAME_BUTTON,
         .contact_count = 1,
         .contacts = {{
             .identifier = 42,
@@ -38,6 +39,7 @@ int main(void) {
     assert(type == TP_MESSAGE_FRAME);
     assert(output.sequence == input.sequence);
     assert(output.capture_time_us == input.capture_time_us);
+    assert(output.flags == TP_FRAME_BUTTON);
     assert(output.contact_count == 1);
     assert(output.contacts[0].identifier == 42);
     assert(fabsf(output.contacts[0].x - 0.25f) < 0.00001f);

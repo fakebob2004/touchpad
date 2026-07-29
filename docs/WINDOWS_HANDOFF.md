@@ -47,7 +47,8 @@ Reject a message or connection when:
 - type is unknown;
 - `contact_count > 10`;
 - `payload_length != contact_count * 44`;
-- HELLO or RESET has a nonzero contact count;
+- FRAME has unknown header flag bits;
+- HELLO or RESET has a nonzero contact count or flags;
 - any coordinate is NaN or infinite.
 
 ## Header: 36 bytes
@@ -60,7 +61,7 @@ Reject a message or connection when:
 | 8 | 4 | u32 | payload_length | `contact_count * 44` |
 | 12 | 4 | u32 | sequence | Monotonic within the current connection epoch |
 | 16 | 2 | u16 | contact_count | Number of contacts in this complete frame |
-| 18 | 2 | u16 | flags | Reserved; require zero for now |
+| 18 | 2 | u16 | flags | FRAME: `BUTTON=bit 0`; HELLO/RESET: zero |
 | 20 | 8 | u64 | capture_time_us | Mac monotonic clock, microseconds |
 | 28 | 8 | u64 | device_time_us | Trackpad timestamp converted to microseconds |
 
@@ -85,9 +86,26 @@ wall-clock timestamps and must not be compared directly with the Windows wall cl
 | 36 | 4 | f32 | minor_axis | Raw contact ellipse minor axis |
 | 40 | 4 | f32 | density | Raw density signal; do not assume calibrated pressure |
 
-Version 1 transmits the raw geometry fields for research and later calibration. The first Windows
-HID implementation should use `identifier`, `flags`, `x`, and `y`. It should not expose `density`
-as HID pressure until its behavior has been characterized across Mac models.
+Version 1 transmits the raw geometry fields for research and later calibration. The Windows HID
+implementation uses `identifier`, contact `flags`, `x`, `y`, and the frame-level `BUTTON` flag.
+`BUTTON` comes from the private framework's button-state callback and maps to HID Button 1. Do not
+substitute `density` for pressure until its behavior has been characterized across Mac models.
+
+### Physical button handoff
+
+The complete click path is:
+
+```text
+MTRegisterButtonStateCallback pressed/released
+    -> MTP1 FRAME header BUTTON bit
+    -> MTP_IOCTL_FRAME_BUTTON
+    -> Precision Touchpad input report Button 1
+```
+
+Button transitions are sent immediately using the latest complete contact snapshot. RESET,
+disconnect, and timeout release paths must clear the button. The MTP1 layout and IOCTL structure
+sizes are unchanged, but both the Windows receiver and driver must be rebuilt because their flag
+semantics changed.
 
 ## Raw Mac states and flags
 
@@ -177,7 +195,7 @@ Use Microsoft's Precision Touchpad sample report descriptor as the baseline. The
 must be Digitizers page `0x0D`, Touch Pad usage `0x05`. Implement at minimum:
 
 - per contact: Contact Identifier, Tip Switch, Confidence, X, Y;
-- per frame: Contact Count and Scan Time;
+- per frame: Contact Count, Scan Time, and integrated Button 1 state;
 - Device Capabilities Feature Report, including maximum contact count and button type;
 - Device Certification Status Feature Report with the required 256-byte vendor-defined field;
 - optional Latency Mode Feature Report;

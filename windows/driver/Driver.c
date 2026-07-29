@@ -6,6 +6,7 @@ static NTSTATUS SubmitIoctlFrame(PDEVICE_CONTEXT context, const MTP_IOCTL_FRAME*
     UCHAR index;
 
     if (input->abi_version != MTP_IOCTL_ABI_VERSION ||
+        (input->flags & ~(MTP_IOCTL_FRAME_RESET | MTP_IOCTL_FRAME_BUTTON)) != 0 ||
         input->active_contact_count > MTP_HID_MAX_CONTACTS ||
         input->report_contact_count > MTP_HID_MAX_CONTACTS) {
         return STATUS_INVALID_PARAMETER;
@@ -15,6 +16,7 @@ static NTSTATUS SubmitIoctlFrame(PDEVICE_CONTEXT context, const MTP_IOCTL_FRAME*
     report.ReportId = MTP_REPORT_ID_INPUT;
     report.ScanTime = input->scan_time_100us != 0 ? input->scan_time_100us : ++context->LastScanTime;
     report.ContactCount = input->active_contact_count;
+    report.Button = (input->flags & MTP_IOCTL_FRAME_BUTTON) != 0 ? 1 : 0;
     for (index = 0; index < input->report_contact_count; ++index) {
         const MTP_IOCTL_CONTACT* source = &input->contacts[index];
         MTP_PTP_CONTACT* target;

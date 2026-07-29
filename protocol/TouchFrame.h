@@ -24,6 +24,11 @@ enum TPContactFlags {
     TP_CONTACT_CONFIDENCE = 1u << 2,
 };
 
+enum TPFrameFlags {
+    /* Integrated touchpad button (HID Button 1) is down. */
+    TP_FRAME_BUTTON = 1u << 0,
+};
+
 typedef struct {
     uint32_t identifier;
     uint8_t state;
@@ -43,6 +48,7 @@ typedef struct {
     uint32_t sequence;
     uint64_t capture_time_us;
     uint64_t device_time_us;
+    uint16_t flags;
     uint16_t contact_count;
     TPContact contacts[TP_MAX_CONTACTS];
 } TPFrame;

@@ -13,6 +13,7 @@ constexpr std::size_t kHeaderSize = 36;
 constexpr std::size_t kContactSize = 44;
 constexpr std::size_t kMaxContacts = 10;
 constexpr std::size_t kMaxMessageSize = kHeaderSize + kMaxContacts * kContactSize;
+constexpr std::uint16_t kFrameButton = 0x0001;
 
 enum class MessageType : std::uint16_t { Hello = 1, Frame = 2, Reset = 3 };
 
@@ -36,6 +37,7 @@ struct Message {
     std::uint32_t sequence{};
     std::uint64_t capture_time_us{};
     std::uint64_t device_time_us{};
+    std::uint16_t flags{};
     std::vector<Contact> contacts;
 };
 

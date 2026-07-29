@@ -31,6 +31,8 @@ Real capture testing established:
 - contact IDs remain stable through a touch lifecycle;
 - active hardware cadence has an 8 ms median interval, approximately 125 Hz;
 - position, velocity, size, ellipse axes, angle, and density fields contain usable values;
+- the private `MTRegisterButtonStateCallback` symbol is available and reports physical
+  pressed/released transitions without estimating force from contact density;
 - no invalid frames or duplicate IDs were observed in the recorded test sessions.
 
 The probe writes JSON Lines to stdout and diagnostics to stderr. A private-framework hardware banner
@@ -43,11 +45,16 @@ mouse emulation and lose native Windows settings. MTP1 therefore carries the com
 contact set:
 
 ```text
-identifier + state + flags + x/y + geometry + monotonic timestamp
+identifier + state + flags + x/y + geometry + button state + monotonic timestamp
 ```
 
 Windows maps those contacts to HID slots and lets its Precision Touchpad stack recognize gestures.
 This is why native two-finger scrolling and pinch zoom work without Mac-side gesture code.
+
+Physical clicking is also not recognized as a gesture on the Mac. The agent forwards the private
+framework's button transition as the MTP1 frame-level `BUTTON` bit. It emits an immediate frame
+with the latest complete contact snapshot on both press and release, preventing a late release from
+leaving Windows in a stuck-button state.
 
 ## 4. Real-time and reconnect design
 

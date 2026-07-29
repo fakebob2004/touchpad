@@ -57,6 +57,10 @@ size_t tp_encode_message(enum TPMessageType type,
     }
 
     const uint16_t count = type == TP_MESSAGE_FRAME ? frame->contact_count : 0;
+    const uint16_t flags = type == TP_MESSAGE_FRAME ? frame->flags : 0;
+    if ((flags & ~TP_FRAME_BUTTON) != 0) {
+        return 0;
+    }
     const uint32_t payload_size = (uint32_t)count * TP_CONTACT_SIZE;
     const size_t message_size = TP_HEADER_SIZE + payload_size;
     if (capacity < message_size) {
@@ -69,7 +73,7 @@ size_t tp_encode_message(enum TPMessageType type,
     put_u32(destination + 8, payload_size);
     put_u32(destination + 12, frame->sequence);
     put_u16(destination + 16, count);
-    put_u16(destination + 18, 0);
+    put_u16(destination + 18, flags);
     put_u64(destination + 20, frame->capture_time_us);
     put_u64(destination + 28, frame->device_time_us);
 
@@ -107,15 +111,18 @@ bool tp_decode_message(const uint8_t *source,
     }
     const uint32_t payload_size = get_u32(source + 8);
     const uint16_t count = get_u16(source + 16);
+    const uint16_t flags = get_u16(source + 18);
     if (count > TP_MAX_CONTACTS || payload_size != (uint32_t)count * TP_CONTACT_SIZE ||
         length != TP_HEADER_SIZE + payload_size ||
-        (raw_type != TP_MESSAGE_FRAME && count != 0)) {
+        (flags & ~TP_FRAME_BUTTON) != 0 ||
+        (raw_type != TP_MESSAGE_FRAME && (count != 0 || flags != 0))) {
         return false;
     }
 
     memset(frame, 0, sizeof(*frame));
     *type = (enum TPMessageType)raw_type;
     frame->sequence = get_u32(source + 12);
+    frame->flags = flags;
     frame->contact_count = count;
     frame->capture_time_us = get_u64(source + 20);
     frame->device_time_us = get_u64(source + 28);
