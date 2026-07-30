@@ -23,14 +23,24 @@ After a real-device run, the macOS agent should create or update
   "connected": true,
   "physical_button_enabled": true,
   "button_events": 2,
-  "physical_drag": "passed",
-  "notes": []
+  "physical_drag": "failed",
+  "raw_button_callbacks": [
+    {"pressed": 1, "released": 0},
+    {"pressed": 0, "released": 1}
+  ],
+  "emitted_button_transitions": [
+    {"sequence": 100, "button": true, "contact_count": 1},
+    {"sequence": 350, "button": false, "contact_count": 1}
+  ],
+  "notes": ["Add exact symptoms here."]
 }
 ```
 
 `button_events` must increase for physical press and release. Use
 `"physical_drag": "failed"` and place exact symptoms in `notes` if Windows
-does not drag despite nonzero button events.
+does not drag despite nonzero button events. For a two-second hold, the
+frame-level button value must remain true for every intervening contact frame;
+a short true/false pulse is only a click and cannot drag.
 
 Do not put credentials, certificate private keys, tokens, or public-network
 addresses in handoff files.

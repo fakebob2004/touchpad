@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-30T13:45:00+08:00",
+  "updated_at": "2026-07-30T14:20:00+08:00",
   "source_commit": "5334a7363c9a6db5693b3e498e14e8da2a6173b8",
   "windows": {
     "ipv4": "192.168.31.115",
@@ -20,11 +20,24 @@
   "validation": {
     "windows_receiver_tests": "passed",
     "synthetic_button_frame": "passed",
-    "real_mac_physical_drag": "pending"
+    "real_mac_click": "passed",
+    "real_mac_physical_drag": "failed",
+    "observed_symptom": "A physical press activates the target window, but holding the press while moving does not select text."
+  },
+  "requested_mac_diagnostics": {
+    "scenario": "Place one finger on the trackpad, press and hold for two seconds while moving, then release.",
+    "required_trace": [
+      "Every raw MTRegisterButtonStateCallback invocation with pressed and released integer arguments.",
+      "Every emitted button transition with sequence, frame flags, and contact_count.",
+      "Final button_events count."
+    ],
+    "acceptance_condition": "TP_FRAME_BUTTON remains set on every contact frame from physical down until physical release.",
+    "response_file": "handoff/mac-validation.json"
   },
   "notes": [
     "Do not pass the literal placeholder WINDOWS_IP to mac-touch-agent.",
     "Physical press validation requires button_events to increase on both press and release.",
-    "Write the Mac result to handoff/mac-validation.json and commit it for the Windows agent."
+    "The current symptom is consistent with a short button pulse rather than a held level.",
+    "Write the Mac trace and result to handoff/mac-validation.json and commit it for the Windows agent."
   ]
 }
