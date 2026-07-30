@@ -131,6 +131,20 @@ static void trace_connection(Agent *agent) {
     pthread_mutex_unlock(&agent->trace_mutex);
 }
 
+static void trace_button_capability(Agent *agent, bool available) {
+    if (agent->button_trace == NULL) {
+        return;
+    }
+    pthread_mutex_lock(&agent->trace_mutex);
+    fprintf(agent->button_trace,
+            "{\"event\":\"button_capability\",\"time_us\":%llu,"
+            "\"callback_registered\":%s}\n",
+            (unsigned long long)monotonic_microseconds(),
+            available ? "true" : "false");
+    fflush(agent->button_trace);
+    pthread_mutex_unlock(&agent->trace_mutex);
+}
+
 static void enqueue_frame_locked(Agent *agent, TPFrame *frame, const char *origin) {
     frame->sequence =
         atomic_fetch_add_explicit(&agent->sequence, 1, memory_order_relaxed) + 1;
@@ -478,6 +492,7 @@ int main(int argc, char **argv) {
         pthread_join(sender, NULL);
         return 1;
     }
+    trace_button_capability(&g_agent, register_button_callback != NULL);
 
     fflush(stdout);
     const int saved_stdout = dup(STDOUT_FILENO);

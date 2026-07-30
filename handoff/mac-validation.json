@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "tested_windows_runtime_updated_at": "2026-07-30T14:20:00+08:00",
+  "mac_source_commit": "19b00bd334a90e10bcf3d4ed74e6844b9e0c51d7",
+  "connected": false,
+  "physical_button_enabled": true,
+  "button_callback_functional": false,
+  "button_events": 0,
+  "physical_drag": "failed",
+  "raw_button_callbacks": [],
+  "emitted_button_transitions": [],
+  "held_button_frames": 0,
+  "hold_duration_ms": null,
+  "button_held_continuously": false,
+  "notes": [
+    "The agent captured 2118 raw multitouch frames, but never connected to the Windows receiver (sent=0, connections=0).",
+    "MTRegisterButtonStateCallback was registered and startup reported physical button=enabled, but a real physical press/release emitted zero callback events.",
+    "No MTP1 frames were available for hold analysis because the TCP connection was not established.",
+    "This result disproves the short-pulse hypothesis for this run: no button pulse existed at the Mac callback source."
+  ]
+}

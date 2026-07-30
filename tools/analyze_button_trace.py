@@ -50,6 +50,12 @@ def main() -> None:
     callbacks = [event for event in events if event.get("event") == "button_callback"]
     frames = [event for event in events if event.get("event") == "frame"]
     connections = [event for event in events if event.get("event") == "connection"]
+    capabilities = [
+        event for event in events if event.get("event") == "button_capability"
+    ]
+    callback_registered = any(
+        event.get("callback_registered") for event in capabilities
+    )
 
     pressed_callbacks = [event for event in callbacks if event.get("pressed", 0) != 0]
     released_callbacks = [event for event in callbacks if event.get("released", 0) != 0]
@@ -97,23 +103,34 @@ def main() -> None:
         previous = button
 
     continuous = bool(held_frames) and not false_while_held
-    notes = [
-        f"Observed {len(held_frames)} frames during a {hold_duration_ms} ms physical hold.",
-        (
-            "TP_FRAME_BUTTON stayed set throughout the measured hold."
-            if continuous
-            else f"{len(false_while_held)} frame(s) cleared TP_FRAME_BUTTON during the hold."
-        ),
-    ]
+    notes = []
+    if held_frames:
+        notes.extend(
+            [
+                f"Observed {len(held_frames)} frames during a {hold_duration_ms} ms physical hold.",
+                (
+                    "TP_FRAME_BUTTON stayed set throughout the measured hold."
+                    if continuous
+                    else f"{len(false_while_held)} frame(s) cleared TP_FRAME_BUTTON during the hold."
+                ),
+            ]
+        )
+    else:
+        notes.append("No connected MTP1 frames were available for hold analysis.")
     if press_time is None or release_time is None:
         notes.append("A complete physical press/release callback pair was not captured.")
+    if callback_registered and not callbacks:
+        notes.append(
+            "MTRegisterButtonStateCallback was registered, but it emitted no events."
+        )
 
     output = {
         "schema_version": 1,
         "tested_windows_runtime_updated_at": runtime["updated_at"],
         "mac_source_commit": git_commit(repo),
         "connected": bool(connections),
-        "physical_button_enabled": True,
+        "physical_button_enabled": callback_registered,
+        "button_callback_functional": bool(callbacks),
         "button_events": len(callbacks),
         "physical_drag": args.physical_drag,
         "raw_button_callbacks": [
