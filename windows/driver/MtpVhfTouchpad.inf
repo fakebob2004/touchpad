@@ -3,7 +3,7 @@ Signature="$WINDOWS NT$"
 Class=HIDClass
 ClassGuid={745A17A0-74D3-11D0-B6FE-00A0C90F57DA}
 Provider=%ManufacturerName%
-DriverVer=07/23/2026,0.1.0.7
+DriverVer=07/30/2026,0.1.0.8
 CatalogFile=MtpVhfTouchpad.cat
 PnpLockdown=1
 

@@ -13,7 +13,7 @@
 #define MTP_INT32 int32_t
 #endif
 
-#define MTP_IOCTL_ABI_VERSION 1u
+#define MTP_IOCTL_ABI_VERSION 2u
 #define MTP_HID_MAX_CONTACTS 5u
 #define MTP_COORDINATE_LOGICAL_MAX 32767u
 

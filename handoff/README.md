@@ -1,0 +1,36 @@
+# Agent integration handoff
+
+Runtime coordination between the Windows and macOS agents is exchanged through
+versioned files in this directory instead of manual copy/paste.
+
+## Windows to macOS
+
+The Windows agent owns `windows-runtime.json`. The macOS agent should pull the
+latest integration branch, read that file, and use its exact address, port,
+minimum commit, and startup marker. Values such as `WINDOWS_IP` in general
+documentation are placeholders and must never be passed literally.
+
+## macOS to Windows
+
+After a real-device run, the macOS agent should create or update
+`mac-validation.json` with this shape:
+
+```json
+{
+  "schema_version": 1,
+  "tested_windows_runtime_updated_at": "copy from windows-runtime.json",
+  "mac_source_commit": "full Git commit",
+  "connected": true,
+  "physical_button_enabled": true,
+  "button_events": 2,
+  "physical_drag": "passed",
+  "notes": []
+}
+```
+
+`button_events` must increase for physical press and release. Use
+`"physical_drag": "failed"` and place exact symptoms in `notes` if Windows
+does not drag despite nonzero button events.
+
+Do not put credentials, certificate private keys, tokens, or public-network
+addresses in handoff files.

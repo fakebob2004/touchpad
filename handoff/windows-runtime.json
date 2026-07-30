@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-30T13:45:00+08:00",
+  "source_commit": "5334a7363c9a6db5693b3e498e14e8da2a6173b8",
+  "windows": {
+    "ipv4": "192.168.31.115",
+    "tcp_port": 39871,
+    "receiver_executable": "out/windows/Release/mtp-receiver.exe",
+    "receiver_listening": true,
+    "driver_version": "0.1.0.8",
+    "ioctl_abi_version": 2,
+    "driver_installed": true
+  },
+  "mac": {
+    "minimum_source_commit": "5334a7363c9a6db5693b3e498e14e8da2a6173b8",
+    "connectivity_command": "nc -vz 192.168.31.115 39871",
+    "agent_command": "./build/mac-touch-agent 192.168.31.115 39871",
+    "required_startup_marker": "physical button=enabled"
+  },
+  "validation": {
+    "windows_receiver_tests": "passed",
+    "synthetic_button_frame": "passed",
+    "real_mac_physical_drag": "pending"
+  },
+  "notes": [
+    "Do not pass the literal placeholder WINDOWS_IP to mac-touch-agent.",
+    "Physical press validation requires button_events to increase on both press and release.",
+    "Write the Mac result to handoff/mac-validation.json and commit it for the Windows agent."
+  ]
+}

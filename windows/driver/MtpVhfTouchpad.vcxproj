@@ -27,7 +27,7 @@
   <ItemDefinitionGroup>
     <ClCompile><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><DisableSpecificWarnings>4005;4083;%(DisableSpecificWarnings)</DisableSpecificWarnings><AdditionalIncludeDirectories>$(ProjectDir)..\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
     <Link><AdditionalDependencies>VhfKm.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
-    <Inf><TimeStamp>0.1.0.7</TimeStamp></Inf>
+    <Inf><TimeStamp>0.1.0.8</TimeStamp></Inf>
   </ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Driver.c" /><ClCompile Include="Descriptor.c" /></ItemGroup>
   <ItemGroup><ClInclude Include="Driver.h" /><ClInclude Include="..\shared\TouchpadIoctl.h" /></ItemGroup>
