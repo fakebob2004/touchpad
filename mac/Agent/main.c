@@ -51,6 +51,8 @@ typedef struct {
     atomic_uint_fast64_t button_events;
     TPFrame latest_frame;
     pthread_mutex_t frame_mutex;
+    FILE *button_trace;
+    pthread_mutex_t trace_mutex;
 } Agent;
 
 typedef CFArrayRef (*CreateListFn)(void);
@@ -83,14 +85,62 @@ static uint8_t flags_for_state(int32_t state) {
     return flags;
 }
 
-static void enqueue_frame_locked(Agent *agent, TPFrame *frame) {
+static void trace_callback(Agent *agent, int32_t pressed, int32_t released) {
+    if (agent->button_trace == NULL) {
+        return;
+    }
+    pthread_mutex_lock(&agent->trace_mutex);
+    fprintf(agent->button_trace,
+            "{\"event\":\"button_callback\",\"time_us\":%llu,"
+            "\"pressed\":%d,\"released\":%d}\n",
+            (unsigned long long)monotonic_microseconds(),
+            pressed,
+            released);
+    fflush(agent->button_trace);
+    pthread_mutex_unlock(&agent->trace_mutex);
+}
+
+static void trace_frame(Agent *agent, const TPFrame *frame, const char *origin) {
+    if (agent->button_trace == NULL) {
+        return;
+    }
+    pthread_mutex_lock(&agent->trace_mutex);
+    fprintf(agent->button_trace,
+            "{\"event\":\"frame\",\"time_us\":%llu,\"origin\":\"%s\","
+            "\"sequence\":%u,\"frame_flags\":%u,\"button\":%s,"
+            "\"contact_count\":%u}\n",
+            (unsigned long long)frame->capture_time_us,
+            origin,
+            frame->sequence,
+            frame->flags,
+            (frame->flags & TP_FRAME_BUTTON) != 0 ? "true" : "false",
+            frame->contact_count);
+    fflush(agent->button_trace);
+    pthread_mutex_unlock(&agent->trace_mutex);
+}
+
+static void trace_connection(Agent *agent) {
+    if (agent->button_trace == NULL) {
+        return;
+    }
+    pthread_mutex_lock(&agent->trace_mutex);
+    fprintf(agent->button_trace,
+            "{\"event\":\"connection\",\"time_us\":%llu,\"connected\":true}\n",
+            (unsigned long long)monotonic_microseconds());
+    fflush(agent->button_trace);
+    pthread_mutex_unlock(&agent->trace_mutex);
+}
+
+static void enqueue_frame_locked(Agent *agent, TPFrame *frame, const char *origin) {
     frame->sequence =
         atomic_fetch_add_explicit(&agent->sequence, 1, memory_order_relaxed) + 1;
     frame->capture_time_us = monotonic_microseconds();
     WireMessage message;
     message.length =
         tp_encode_message(TP_MESSAGE_FRAME, frame, message.bytes, sizeof(message.bytes));
-    if (message.length == 0 || !queue_push(&agent->queue, &message)) {
+    if (message.length != 0 && queue_push(&agent->queue, &message)) {
+        trace_frame(agent, frame, origin);
+    } else {
         /*
          * Assigned but unsent sequence numbers cannot be skipped inside a
          * strict MTP1 session. Reconnect to establish a fresh HELLO/RESET epoch.
@@ -108,6 +158,7 @@ static void button_callback(MTDeviceRef device,
                             void *context) {
     (void)device;
     Agent *agent = context;
+    trace_callback(agent, pressed, released);
     if (pressed != 0) {
         atomic_store_explicit(&agent->button_down, true, memory_order_release);
     }
@@ -126,7 +177,7 @@ static void button_callback(MTDeviceRef device,
                       : 0;
     frame.device_time_us = 0;
     agent->latest_frame = frame;
-    enqueue_frame_locked(agent, &frame);
+    enqueue_frame_locked(agent, &frame, "button_callback");
     pthread_mutex_unlock(&agent->frame_mutex);
 }
 
@@ -255,6 +306,7 @@ static void *sender_main(void *context) {
         memset(&agent->latest_frame, 0, sizeof(agent->latest_frame));
         pthread_mutex_unlock(&agent->frame_mutex);
         atomic_store_explicit(&agent->connected, true, memory_order_release);
+        trace_connection(agent);
         fprintf(stderr, "connected to %s:%s\n", agent->host, agent->port);
 
         WireMessage message;
@@ -315,7 +367,7 @@ static void contact_callback(MTDeviceRef device,
         destination->density = source->density;
     }
     g_agent.latest_frame = frame;
-    enqueue_frame_locked(&g_agent, &frame);
+    enqueue_frame_locked(&g_agent, &frame, "contact_callback");
     pthread_mutex_unlock(&g_agent.frame_mutex);
 }
 
@@ -336,7 +388,9 @@ static void *load_symbol(void *framework, const char *name, bool required) {
 }
 
 static int usage(const char *program) {
-    fprintf(stderr, "usage: %s HOST [PORT] [--duration SECONDS]\n", program);
+    fprintf(stderr,
+            "usage: %s HOST [PORT] [--duration SECONDS] [--button-trace PATH]\n",
+            program);
     return 2;
 }
 
@@ -346,6 +400,7 @@ int main(int argc, char **argv) {
     }
     const char *host = argv[1];
     const char *port = "39871";
+    const char *button_trace_path = NULL;
     int duration = 0;
     bool port_seen = false;
     for (int index = 2; index < argc; ++index) {
@@ -357,6 +412,11 @@ int main(int argc, char **argv) {
             if (duration <= 0 || duration > 86400) {
                 return usage(argv[0]);
             }
+        } else if (strcmp(argv[index], "--button-trace") == 0) {
+            if (++index >= argc || argv[index][0] == '\0') {
+                return usage(argv[0]);
+            }
+            button_trace_path = argv[index];
         } else if (!port_seen) {
             port = argv[index];
             port_seen = true;
@@ -374,6 +434,18 @@ int main(int argc, char **argv) {
     pthread_mutex_init(&g_agent.queue.mutex, NULL);
     pthread_cond_init(&g_agent.queue.available, NULL);
     pthread_mutex_init(&g_agent.frame_mutex, NULL);
+    pthread_mutex_init(&g_agent.trace_mutex, NULL);
+    if (button_trace_path != NULL) {
+        g_agent.button_trace = fopen(button_trace_path, "w");
+        if (g_agent.button_trace == NULL) {
+            fprintf(stderr,
+                    "cannot open button trace %s: %s\n",
+                    button_trace_path,
+                    strerror(errno));
+            return 1;
+        }
+        fprintf(stderr, "button trace: %s\n", button_trace_path);
+    }
     signal(SIGINT, stop_agent);
     signal(SIGTERM, stop_agent);
     signal(SIGPIPE, SIG_IGN);

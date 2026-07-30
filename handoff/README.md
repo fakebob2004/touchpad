@@ -44,3 +44,26 @@ a short true/false pulse is only a click and cannot drag.
 
 Do not put credentials, certificate private keys, tokens, or public-network
 addresses in handoff files.
+
+### Mac capture commands
+
+Build the current agent, then perform one deliberate two-second physical
+press-and-hold while moving one finger:
+
+```sh
+make build/mac-touch-agent
+./build/mac-touch-agent 192.168.31.115 39871 \
+  --duration 15 \
+  --button-trace /tmp/mac-button-trace.jsonl
+```
+
+Record whether dragging worked, then generate the response:
+
+```sh
+python3 tools/analyze_button_trace.py /tmp/mac-button-trace.jsonl \
+  --physical-drag failed
+```
+
+Use `--physical-drag passed` if text selection or window dragging actually
+worked. The analyzer checks every emitted contact frame between the first
+physical press and release and writes `handoff/mac-validation.json`.
