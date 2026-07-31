@@ -3,6 +3,7 @@ import argparse
 import collections
 import json
 import statistics
+import struct
 import sys
 
 
@@ -20,6 +21,19 @@ def signal_summary(values):
         "p99": round(percentile(values, 0.99), 7),
         "max": round(max(values), 7),
     }
+
+def normalize_contact(contact):
+    # Probe revisions before 608afdb exposed these inferred ABI fields under
+    # temporary names. Preserve analysis compatibility with those captures.
+    if "pressure" not in contact and "unknown3" in contact:
+        contact["pressure"] = struct.unpack(
+            "f", struct.pack("I", contact["unknown3"] & 0xFFFFFFFF)
+        )[0]
+    if "finger_id" not in contact and "unknown1" in contact:
+        contact["finger_id"] = contact["unknown1"]
+    if "hand_id" not in contact and "unknown2" in contact:
+        contact["hand_id"] = contact["unknown2"]
+    return contact
 
 
 def main():
@@ -70,7 +84,9 @@ def main():
         identifiers.update(ids)
         states.update(contact["state"] for contact in contacts)
         active_contacts.extend(
-            contact for contact in contacts if contact["state"] in (3, 4)
+            normalize_contact(contact)
+            for contact in contacts
+            if contact["state"] in (3, 4)
         )
 
     regular_device_intervals = [value for value in device_intervals if value <= 20]
@@ -104,11 +120,9 @@ def main():
         "size",
         "major",
         "minor",
-        "unknown1",
-        "unknown2",
-        "unknown3",
-        "unknown4_0",
-        "unknown4_1",
+        "pressure",
+        "finger_id",
+        "hand_id",
     )
     available_signals = {
         name: [contact[name] for contact in active_contacts if name in contact]

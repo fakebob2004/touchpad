@@ -25,16 +25,16 @@ typedef struct {
     double timestamp;
     int32_t identifier;
     int32_t state;
-    int32_t unknown1;
-    int32_t unknown2;
+    int32_t finger_id;
+    int32_t hand_id;
     MTReadout normalized;
     float size;
-    int32_t unknown3;
+    float pressure;
     float angle;
     float major_axis;
     float minor_axis;
     MTReadout millimeters;
-    int32_t unknown4[2];
+    int32_t reserved[2];
     float density;
 } MTTouch;
 
