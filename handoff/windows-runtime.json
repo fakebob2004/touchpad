@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-30T14:20:00+08:00",
+  "updated_at": "2026-07-31T16:10:00+08:00",
   "source_commit": "5334a7363c9a6db5693b3e498e14e8da2a6173b8",
   "windows": {
     "ipv4": "192.168.31.115",
@@ -21,8 +21,8 @@
     "windows_receiver_tests": "passed",
     "synthetic_button_frame": "passed",
     "real_mac_click": "passed",
-    "real_mac_physical_drag": "failed",
-    "observed_symptom": "A physical press activates the target window, but holding the press while moving does not select text."
+    "real_mac_physical_drag": "passed",
+    "observed_result": "Sustained physical press and drag works through the calibrated Mac pressure fallback."
   },
   "requested_mac_diagnostics": {
     "scenario": "Place one finger on the trackpad, press and hold for two seconds while moving, then release.",
