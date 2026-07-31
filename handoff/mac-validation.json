@@ -19,6 +19,7 @@
     "This result disproves the short-pulse hypothesis for this run: no button pulse existed at the Mac callback source.",
     "A separate 869-frame physical-press capture showed density=0.359375..1.539062 and size=0.1523438..2.640625; movement/contact-area effects overlap the force interval, so neither signal is safe as an uncalibrated click threshold.",
     "The hidden-field probe identified unknown1=finger_id, unknown2=hand_id, and unknown3=pressure by matching the ABI used by Karabiner-Elements; on this Mac pressure is stored as float and ranged from 17 to 2407.",
-    "The mixed-action capture has no stage timestamps, so separate light-touch and force-hold captures are required before choosing press/release hysteresis thresholds."
+    "The mixed-action capture has no stage timestamps, so separate light-touch and force-hold captures are required before choosing press/release hysteresis thresholds.",
+    "Calibration completed: light-touch pressure max=68; force-hold pressure median=189 and p90=375. The Mac agent now presses after three frames >=90 and latches until all tip contacts lift."
   ]
 }

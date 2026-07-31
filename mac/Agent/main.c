@@ -47,8 +47,12 @@ typedef struct {
     atomic_uint_fast64_t sent;
     atomic_uint_fast64_t dropped;
     atomic_uint_fast64_t reconnects;
-    atomic_bool button_down;
+    atomic_bool physical_button_down;
     atomic_uint_fast64_t button_events;
+    bool pressure_button_down;
+    unsigned pressure_press_frames;
+    uint64_t pressure_button_events;
+    float pressure_threshold;
     TPFrame latest_frame;
     pthread_mutex_t frame_mutex;
     FILE *button_trace;
@@ -83,6 +87,11 @@ static uint8_t flags_for_state(int32_t state) {
         flags |= TP_CONTACT_TIP;
     }
     return flags;
+}
+
+static bool effective_button_down(const Agent *agent) {
+    return agent->pressure_button_down ||
+           atomic_load_explicit(&agent->physical_button_down, memory_order_acquire);
 }
 
 static void trace_callback(Agent *agent, int32_t pressed, int32_t released) {
@@ -174,10 +183,10 @@ static void button_callback(MTDeviceRef device,
     Agent *agent = context;
     trace_callback(agent, pressed, released);
     if (pressed != 0) {
-        atomic_store_explicit(&agent->button_down, true, memory_order_release);
+        atomic_store_explicit(&agent->physical_button_down, true, memory_order_release);
     }
     if (released != 0) {
-        atomic_store_explicit(&agent->button_down, false, memory_order_release);
+        atomic_store_explicit(&agent->physical_button_down, false, memory_order_release);
     }
     atomic_fetch_add_explicit(&agent->button_events, 1, memory_order_relaxed);
     if (!atomic_load_explicit(&agent->connected, memory_order_acquire)) {
@@ -186,9 +195,7 @@ static void button_callback(MTDeviceRef device,
 
     pthread_mutex_lock(&agent->frame_mutex);
     TPFrame frame = agent->latest_frame;
-    frame.flags = atomic_load_explicit(&agent->button_down, memory_order_acquire)
-                      ? TP_FRAME_BUTTON
-                      : 0;
+    frame.flags = effective_button_down(agent) ? TP_FRAME_BUTTON : 0;
     frame.device_time_us = 0;
     agent->latest_frame = frame;
     enqueue_frame_locked(agent, &frame, "button_callback");
@@ -360,10 +367,36 @@ static void contact_callback(MTDeviceRef device,
     TPFrame frame;
     memset(&frame, 0, sizeof(frame));
     frame.device_time_us = timestamp > 0 ? (uint64_t)(timestamp * 1000000.0) : 0;
-    frame.flags = atomic_load_explicit(&g_agent.button_down, memory_order_acquire)
-                      ? TP_FRAME_BUTTON
-                      : 0;
     frame.contact_count = (uint16_t)touch_count;
+    bool has_tip = false;
+    float maximum_pressure = 0;
+    for (size_t index = 0; index < touch_count; ++index) {
+        const MTTouch *source = &touches[index];
+        if ((flags_for_state(source->state) & TP_CONTACT_TIP) != 0) {
+            has_tip = true;
+            if (source->pressure > maximum_pressure) {
+                maximum_pressure = source->pressure;
+            }
+        }
+    }
+    if (!has_tip) {
+        if (g_agent.pressure_button_down) {
+            ++g_agent.pressure_button_events;
+        }
+        g_agent.pressure_button_down = false;
+        g_agent.pressure_press_frames = 0;
+    } else if (!g_agent.pressure_button_down && g_agent.pressure_threshold > 0) {
+        if (maximum_pressure >= g_agent.pressure_threshold) {
+            ++g_agent.pressure_press_frames;
+            if (g_agent.pressure_press_frames >= 3) {
+                g_agent.pressure_button_down = true;
+                ++g_agent.pressure_button_events;
+            }
+        } else {
+            g_agent.pressure_press_frames = 0;
+        }
+    }
+    frame.flags = effective_button_down(&g_agent) ? TP_FRAME_BUTTON : 0;
     for (size_t index = 0; index < touch_count; ++index) {
         const MTTouch *source = &touches[index];
         TPContact *destination = &frame.contacts[index];
@@ -403,7 +436,8 @@ static void *load_symbol(void *framework, const char *name, bool required) {
 
 static int usage(const char *program) {
     fprintf(stderr,
-            "usage: %s HOST [PORT] [--duration SECONDS] [--button-trace PATH]\n",
+            "usage: %s HOST [PORT] [--duration SECONDS] [--button-trace PATH] "
+            "[--pressure-threshold VALUE]\n",
             program);
     return 2;
 }
@@ -415,6 +449,7 @@ int main(int argc, char **argv) {
     const char *host = argv[1];
     const char *port = "39871";
     const char *button_trace_path = NULL;
+    float pressure_threshold = 90.0f;
     int duration = 0;
     bool port_seen = false;
     for (int index = 2; index < argc; ++index) {
@@ -431,6 +466,16 @@ int main(int argc, char **argv) {
                 return usage(argv[0]);
             }
             button_trace_path = argv[index];
+        } else if (strcmp(argv[index], "--pressure-threshold") == 0) {
+            if (++index >= argc) {
+                return usage(argv[0]);
+            }
+            char *end = NULL;
+            pressure_threshold = strtof(argv[index], &end);
+            if (end == argv[index] || *end != '\0' || pressure_threshold < 0 ||
+                pressure_threshold > 1000000) {
+                return usage(argv[0]);
+            }
         } else if (!port_seen) {
             port = argv[index];
             port_seen = true;
@@ -442,6 +487,7 @@ int main(int argc, char **argv) {
     memset(&g_agent, 0, sizeof(g_agent));
     g_agent.host = host;
     g_agent.port = port;
+    g_agent.pressure_threshold = pressure_threshold;
     atomic_init(&g_agent.running, true);
     atomic_init(&g_agent.connected, false);
     atomic_init(&g_agent.reconnect_requested, false);
@@ -531,11 +577,13 @@ int main(int argc, char **argv) {
     }
 
     fprintf(stderr,
-            "streaming %d built-in trackpad(s) to %s:%s; physical button=%s\n",
+            "streaming %d built-in trackpad(s) to %s:%s; physical button=%s; "
+            "pressure click threshold=%.1f\n",
             started,
             host,
             port,
-            register_button_callback != NULL ? "enabled" : "unavailable");
+            register_button_callback != NULL ? "enabled" : "unavailable",
+            pressure_threshold);
     const uint64_t started_at = monotonic_microseconds();
     while (atomic_load_explicit(&g_agent.running, memory_order_relaxed)) {
         usleep(100000);
@@ -545,11 +593,13 @@ int main(int argc, char **argv) {
     }
     pthread_join(sender, NULL);
     fprintf(stderr,
-            "summary: captured=%llu sent=%llu dropped=%llu connections=%llu button_events=%llu\n",
+            "summary: captured=%llu sent=%llu dropped=%llu connections=%llu "
+            "button_events=%llu pressure_button_events=%llu\n",
             (unsigned long long)atomic_load_explicit(&g_agent.captured, memory_order_relaxed),
             (unsigned long long)atomic_load_explicit(&g_agent.sent, memory_order_relaxed),
             (unsigned long long)atomic_load_explicit(&g_agent.dropped, memory_order_relaxed),
             (unsigned long long)atomic_load_explicit(&g_agent.reconnects, memory_order_relaxed),
-            (unsigned long long)atomic_load_explicit(&g_agent.button_events, memory_order_relaxed));
+            (unsigned long long)atomic_load_explicit(&g_agent.button_events, memory_order_relaxed),
+            (unsigned long long)g_agent.pressure_button_events);
     return 0;
 }

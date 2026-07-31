@@ -52,6 +52,13 @@ Windows 将触点映射到 HID slot，并交给精确式触控板栈识别手势
 位，并在按下和松开时立即使用最近一次完整触点快照发送一帧，避免松开晚于最后一个触点帧时
 让 Windows 遗留“按住”状态。
 
+在本次测试的 Force Touch MacBook 上，`MTRegisterButtonStateCallback` 虽可注册但不会产生
+事件，因此 Agent 使用已校准的 `MTTouch.pressure` 作为回退。独立采集中轻触最大值为 68，
+用力按住中位数为 189，所以该机器默认按下阈值为 90，并要求连续三帧越过阈值。按下后会一直
+锁存 Button 1，直到所有 Tip 触点抬起；拖动中的压力下降不会导致提前松开。
+
+可用 `--pressure-threshold VALUE` 调整阈值，设为 `0` 可关闭压力点击。
+
 ## 4. 实时性与重连
 
 私有框架回调不能阻塞在 TCP 上。`mac-touch-agent` 在回调路径编码数据，写入 256 帧有界队列，

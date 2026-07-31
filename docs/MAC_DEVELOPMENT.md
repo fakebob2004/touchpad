@@ -56,6 +56,14 @@ framework's button transition as the MTP1 frame-level `BUTTON` bit. It emits an 
 with the latest complete contact snapshot on both press and release, preventing a late release from
 leaving Windows in a stuck-button state.
 
+On the tested Force Touch MacBook, `MTRegisterButtonStateCallback` registers but emits no events.
+The inferred `MTTouch.pressure` field is therefore used as a calibrated fallback. Separate captures
+measured a light-touch maximum of 68 and a force-hold median of 189, so the default press threshold
+is 90 for this hardware. Three consecutive frames must cross the threshold. Once pressed, Button 1
+stays latched until every tip contact lifts; pressure dips while dragging cannot release it.
+
+Override the threshold with `--pressure-threshold VALUE`, or use `0` to disable pressure clicking.
+
 ## 4. Real-time and reconnect design
 
 The private callback must not block on TCP. `mac-touch-agent` encodes on the callback path, places

@@ -50,7 +50,7 @@ touchpad stack rather than mouse-event emulation.
 | Pointer movement | Verified with real Mac input |
 | Native two-finger scrolling | Verified |
 | Native pinch zoom | Verified |
-| Physical press / click (Precision Touchpad Button 1) | Implemented; awaiting real Windows validation |
+| Physical press / click (Precision Touchpad Button 1) | Pressure fallback calibrated on the tested Mac; awaiting Windows drag validation |
 | Three- and four-finger gestures | Pending wider real-device validation |
 | Pairing, authentication, and encryption | Not implemented |
 | Production driver signing and installer | Not implemented |
