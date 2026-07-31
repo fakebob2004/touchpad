@@ -16,6 +16,8 @@
     "The agent captured 2118 raw multitouch frames, but never connected to the Windows receiver (sent=0, connections=0).",
     "MTRegisterButtonStateCallback was registered and startup reported physical button=enabled, but a real physical press/release emitted zero callback events.",
     "No MTP1 frames were available for hold analysis because the TCP connection was not established.",
-    "This result disproves the short-pulse hypothesis for this run: no button pulse existed at the Mac callback source."
+    "This result disproves the short-pulse hypothesis for this run: no button pulse existed at the Mac callback source.",
+    "A separate 869-frame physical-press capture showed density=0.359375..1.539062 and size=0.1523438..2.640625; movement/contact-area effects overlap the force interval, so neither signal is safe as an uncalibrated click threshold.",
+    "The next Mac probe revision records all five previously unknown MTTouch integer fields to look for a Force Touch stage or force signal."
   ]
 }

@@ -85,7 +85,9 @@ static void contact_callback(MTDeviceRef device,
                 "{\"id\":%d,\"state\":%d,\"x\":%.7g,\"y\":%.7g,"
                 "\"vx\":%.7g,\"vy\":%.7g,\"size\":%.7g,\"angle\":%.7g,"
                 "\"major\":%.7g,\"minor\":%.7g,\"density\":%.7g,"
-                "\"mm_x\":%.7g,\"mm_y\":%.7g}",
+                "\"mm_x\":%.7g,\"mm_y\":%.7g,"
+                "\"unknown1\":%d,\"unknown2\":%d,\"unknown3\":%d,"
+                "\"unknown4_0\":%d,\"unknown4_1\":%d}",
                 touch->identifier,
                 touch->state,
                 touch->normalized.position.x,
@@ -98,7 +100,12 @@ static void contact_callback(MTDeviceRef device,
                 touch->minor_axis,
                 touch->density,
                 touch->millimeters.position.x,
-                touch->millimeters.position.y);
+                touch->millimeters.position.y,
+                touch->unknown1,
+                touch->unknown2,
+                touch->unknown3,
+                touch->unknown4[0],
+                touch->unknown4[1]);
     }
     fputs("]}\n", stdout);
     funlockfile(stdout);

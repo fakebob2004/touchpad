@@ -10,6 +10,17 @@ def percentile(values, fraction):
     ordered = sorted(values)
     return ordered[round((len(ordered) - 1) * fraction)]
 
+def signal_summary(values):
+    return {
+        "min": round(min(values), 7),
+        "p10": round(percentile(values, 0.10), 7),
+        "median": round(statistics.median(values), 7),
+        "p90": round(percentile(values, 0.90), 7),
+        "p95": round(percentile(values, 0.95), 7),
+        "p99": round(percentile(values, 0.99), 7),
+        "max": round(max(values), 7),
+    }
+
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze mac-capture-probe JSONL")
@@ -49,6 +60,7 @@ def main():
     contact_counts = collections.Counter()
     states = collections.Counter()
     identifiers = set()
+    active_contacts = []
     for frame in frames:
         contacts = frame["contacts"]
         ids = [contact["id"] for contact in contacts]
@@ -57,6 +69,9 @@ def main():
         contact_counts[len(contacts)] += 1
         identifiers.update(ids)
         states.update(contact["state"] for contact in contacts)
+        active_contacts.extend(
+            contact for contact in contacts if contact["state"] in (3, 4)
+        )
 
     regular_device_intervals = [value for value in device_intervals if value <= 20]
     report = {
@@ -84,6 +99,26 @@ def main():
             "p95": round(percentile(regular_device_intervals, 0.95), 3),
             "estimated_hz": round(1000 / median, 2),
         }
+    signal_names = (
+        "density",
+        "size",
+        "major",
+        "minor",
+        "unknown1",
+        "unknown2",
+        "unknown3",
+        "unknown4_0",
+        "unknown4_1",
+    )
+    available_signals = {
+        name: [contact[name] for contact in active_contacts if name in contact]
+        for name in signal_names
+    }
+    report["active_contact_signals"] = {
+        name: signal_summary(values)
+        for name, values in available_signals.items()
+        if values
+    }
 
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
