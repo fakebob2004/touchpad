@@ -368,18 +368,23 @@ static void contact_callback(MTDeviceRef device,
     memset(&frame, 0, sizeof(frame));
     frame.device_time_us = timestamp > 0 ? (uint64_t)(timestamp * 1000000.0) : 0;
     frame.contact_count = (uint16_t)touch_count;
-    bool has_tip = false;
+    size_t tip_count = 0;
     float maximum_pressure = 0;
     for (size_t index = 0; index < touch_count; ++index) {
         const MTTouch *source = &touches[index];
         if ((flags_for_state(source->state) & TP_CONTACT_TIP) != 0) {
-            has_tip = true;
+            ++tip_count;
             if (source->pressure > maximum_pressure) {
                 maximum_pressure = source->pressure;
             }
         }
     }
-    if (!has_tip) {
+    /*
+     * Pressure clicking is deliberately single-finger only. Multi-finger
+     * contacts belong to the Windows gesture recognizer and must never carry a
+     * latched Button 1 merely because one finger crossed the force threshold.
+     */
+    if (tip_count != 1) {
         if (g_agent.pressure_button_down) {
             ++g_agent.pressure_button_events;
         }

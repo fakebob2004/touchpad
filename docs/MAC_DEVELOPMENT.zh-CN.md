@@ -55,7 +55,9 @@ Windows 将触点映射到 HID slot，并交给精确式触控板栈识别手势
 在本次测试的 Force Touch MacBook 上，`MTRegisterButtonStateCallback` 虽可注册但不会产生
 事件，因此 Agent 使用已校准的 `MTTouch.pressure` 作为回退。独立采集中轻触最大值为 68，
 用力按住中位数为 189，所以该机器默认按下阈值为 90，并要求连续三帧越过阈值。按下后会一直
-锁存 Button 1，直到所有 Tip 触点抬起；拖动中的压力下降不会导致提前松开。
+锁存 Button 1，但仅限恰好一个 Tip 触点；拖动中的压力下降不会导致提前松开。一旦出现两个
+或更多 Tip 触点就立即清除压力按键，而且多指永远不能触发压力点击，使 Windows 原生二指、
+三指和四指手势优先。
 
 可用 `--pressure-threshold VALUE` 调整阈值，设为 `0` 可关闭压力点击。
 

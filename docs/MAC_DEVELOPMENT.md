@@ -60,7 +60,9 @@ On the tested Force Touch MacBook, `MTRegisterButtonStateCallback` registers but
 The inferred `MTTouch.pressure` field is therefore used as a calibrated fallback. Separate captures
 measured a light-touch maximum of 68 and a force-hold median of 189, so the default press threshold
 is 90 for this hardware. Three consecutive frames must cross the threshold. Once pressed, Button 1
-stays latched until every tip contact lifts; pressure dips while dragging cannot release it.
+stays latched while exactly one tip contact remains; pressure dips while dragging cannot release it.
+Two or more tip contacts immediately clear the pressure button and cannot initiate it, so native
+two-, three-, and four-finger gestures always take priority.
 
 Override the threshold with `--pressure-threshold VALUE`, or use `0` to disable pressure clicking.
 
